@@ -8,13 +8,14 @@ Current implemented code:
 - `projects/desktop_app/` (Tauri + React desktop shell)
 
 Planned product:
-- Agentic portfolio manager with deterministic trade DAG, IBKR paper execution, and plugin extensions (openclaw).
+- Agentic portfolio manager with deterministic trade DAG, IBKR paper execution, and plugin extensions (OpenClaw-style runtime host).
 
 ## Start Here
 
-- Read `.opencode/README.md` first.
-- Then read `.opencode/PROJECT.md`, `.opencode/AGENT_CATALOG.md`, and `.opencode/SKILLS_CATALOG.md`.
-- Use `.opencode/COMMANDS.md` for canonical run/test commands.
+- Read `README.md` for top-level project entry.
+- Backend setup/run: `projects/agentic_portfolio/README.md`.
+- Desktop setup/run: `projects/desktop_app/README.md`.
+- Runtime agent contracts: `runtime_agents/README.md`.
 
 ## Repository Rules For Coding Agents
 
@@ -26,16 +27,9 @@ Planned product:
 
 ## Cursor / Copilot Rules
 
-No repo-specific Cursor rules were found:
-- `.cursorrules`
-- `.cursor/rules/`
+No repo-specific Cursor or Copilot instruction files are currently enforced in this repo.
 
-No repo-specific Copilot instructions were found:
-- `.github/copilot-instructions.md`
-
-If these files are later added, treat them as higher-priority supplements and sync key points into `.opencode/` docs.
-
-## Build, Lint, Test (Current Project: quant_rag)
+## Build, Lint, Test (Project: quant_rag)
 
 From repo root:
 
@@ -53,9 +47,9 @@ uv pip install -r requirements.txt
 Run ingest/query CLI:
 
 ```bash
-python -m app.cli ingest --input ./my_data --workspace ./workspace
-python -m app.cli query --workspace ./workspace "What are the main risks?"
-python -m app.cli query --workspace ./workspace --llm openai "Summarize with citations"
+uv run python -m app.cli ingest --input ./my_data --workspace ./workspace
+uv run python -m app.cli query --workspace ./workspace "What are the main risks?"
+uv run python -m app.cli query --workspace ./workspace --llm openai "Summarize with citations"
 ```
 
 There is no committed test suite yet. When tests are added, use:
@@ -74,7 +68,7 @@ uv run pytest
 uv run pytest tests/test_file.py -k test_name
 ```
 
-## Build, Lint, Test (Current Project: agentic_portfolio)
+## Build, Lint, Test (Project: agentic_portfolio)
 
 From repo root:
 
@@ -109,7 +103,7 @@ uv run pytest
 uv run pytest tests/test_end_to_end.py
 ```
 
-## Build, Lint, Test (Current Project: desktop_app)
+## Build, Lint, Test (Project: desktop_app)
 
 From repo root:
 
@@ -173,12 +167,13 @@ Data and safety:
 - Trade execution must remain behind deterministic gates and policy checks.
 - Use environment variables for API credentials (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, etc.).
 
-## Planned Multi-Agent System Guidance
+## Runtime Agent Guidance
 
-For the planned portfolio product:
+For the runtime product:
+- `suzybae` is the primary user-facing agent.
+- `runtime_supervisor` routes and delegates to specialist runtime agents.
 - Use deterministic DAG for any run that can lead to order execution.
-- Allow free-form research outside DAG, but require promotion into DAG before trading.
-- Store every run with correlation IDs, evidence, and policy decisions.
 - Keep IBKR paper mode as the default execution target.
+- Preserve evidence, run IDs, and policy-gate outcomes for auditable decisions.
 
-See `.opencode/OPEN_ITEMS.md` for additional architecture and delivery considerations.
+See `runtime_agents/` and project READMEs for active implementation details.

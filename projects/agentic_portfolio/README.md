@@ -1,17 +1,8 @@
-# Agentic Portfolio (Phase 1 Foundation)
+# Agentic Portfolio Backend
 
-This project contains the Phase 1 backend foundation for the agentic portfolio manager.
+`projects/agentic_portfolio` is the FastAPI backend for the Portfolio Agent product. It provides runtime chat/session orchestration, portfolio/research/trade APIs, provider and gateway integration, OpenClaw-inspired routing surfaces, and audit-oriented execution boundaries.
 
-Current scope:
-
-- FastAPI service skeleton
-- health and settings API endpoints
-- local SQLite persistence scaffold
-- startup initialization flow
-
-## Quick start
-
-From repository root:
+## Setup and Run
 
 ```bash
 cd projects/agentic_portfolio
@@ -20,50 +11,38 @@ uv pip install -e .
 uvicorn app.main:app --reload
 ```
 
-Then open:
+Open:
 
+- `http://127.0.0.1:8000/docs`
 - `http://127.0.0.1:8000/health`
 - `http://127.0.0.1:8000/settings`
-- `http://127.0.0.1:8000/docs`
 
-## Environment variables
+## Core API Groups
 
-- `AGENTIC_PORTFOLIO_ENV` (default: `dev`)
-- `AGENTIC_PORTFOLIO_DATA_DIR` (default: `./workspace`)
-- `AGENTIC_PORTFOLIO_HOST` (default: `127.0.0.1`)
-- `AGENTIC_PORTFOLIO_PORT` (default: `8000`)
+- System: `/health`, `/settings`, `/capabilities`
+- Runtime workspace: `/runtime/chat/sessions/*`, `/runtime/change-requests/*`, `/runtime/agents/*`
+- Provider and model gateway: `/runtime/providers/*`, `/session/*`, `/auth/*`
+- Portfolio/trading: `/portfolio`, `/startup-report`, `/trade-lane/run`, `/execution/*`
+- Market/news/gateway: `/market/*`, `/news/*`, `/gateway/*`
+- OpenClaw-style feature surfaces: `/openclaw/*`, `/agent-router/*`, `/world-monitor/feed`, `/open-data/*`, `/open-stock/*`
 
-## API (Phase 1)
+## Runtime Model
 
-- `GET /health`: service status and startup metadata
-- `GET /settings`: app config and persisted app settings
-- `PUT /settings/{key}`: persist one setting key/value
-- `POST /route`: dynamic lane/workflow routing decision for a user message
+- `suzybae` is the primary human-facing runtime gateway agent.
+- `runtime_supervisor` handles route-level orchestration and safe handoffs.
+- Execution remains confirmation-gated and paper-first by default.
 
-## API (End-to-end backend scaffold)
+## Testing
 
-- `PUT /portfolio`: upsert canonical portfolio snapshot input
-- `GET /portfolio`: latest portfolio snapshot
-- `PUT /risk-profile/{profile}`: set active risk profile
-- `POST /startup-report`: run refresh + report + suggestion generation
-- `POST /research/query`: research lane query output
-- `POST /trade-lane/run`: deterministic L1-L5 style run output + critics + simulation
-- `POST /execution/paper-submit`: idempotent paper submission boundary
-- `GET /suggestions`: list suggestion queue
-- `GET /runs/{run_id}/artifacts`: fetch run artifacts
-
-Example route request:
-
-```json
-{
-  "message": "propose a rebalance for my portfolio",
-  "source": "chat",
-  "automation_enabled": false,
-  "include_internal_plan": false
-}
+```bash
+cd projects/agentic_portfolio
+uv run pytest tests/test_end_to_end.py
 ```
 
-## Notes
+## Environment Variables (Common)
 
-This is infrastructure-only scaffolding for Phase 1.
-No trading, risk, or deterministic DAG execution is implemented yet.
+- `AGENTIC_PORTFOLIO_ENV` (default `dev`)
+- `AGENTIC_PORTFOLIO_DATA_DIR` (default `./workspace`)
+- `AGENTIC_PORTFOLIO_HOST` (default `127.0.0.1`)
+- `AGENTIC_PORTFOLIO_PORT` (default `8000`)
+- Provider credentials and broker/channel credentials as required by your selected integrations

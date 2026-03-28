@@ -1,30 +1,58 @@
 # Portfolio Agent
 
-This repo is building a Windows-first agentic portfolio management system:
+Portfolio Agent is a local-first agentic portfolio platform with a desktop operator cockpit and a FastAPI backend. It combines research workflows, deterministic trade-lane controls, and broker-safe execution boundaries with OpenClaw-style routing, skills/gateway scaffolding, world-monitor news integration, and stock/open-data research surfaces.
 
-- monitor markets + portfolio state
-- generate evidence-linked suggestions and reports
-- promote decisions into a deterministic trade lane when execution is requested
-- connect to brokers (paper-first) behind safety gates
+## Repository Structure
 
-Key idea: two lanes
+- `projects/agentic_portfolio/` - FastAPI backend APIs, runtime orchestration, provider/gateway routing, trade-lane and portfolio services.
+- `projects/desktop_app/` - Tauri + React operator UI.
+- `projects/quant_rag/` - Local-first RAG scaffold for evidence-backed research.
+- `runtime_agents/` - Runtime agent specifications. `suzybae` is the main human-facing gateway agent.
 
-- Research lane: flexible, exploratory analysis (advisory).
-- Trade lane: deterministic, typed DAG with critic gates (execution-capable).
+## Quick Start
 
-## Repo layout
+### 1) Run Backend
 
-- `projects/desktop_app/`: Tauri + React desktop app.
-- `projects/agentic_portfolio/`: FastAPI backend (operator loop, artifacts, broker boundaries).
-- `projects/quant_rag/`: local-first RAG scaffold (evidence-backed research).
+```bash
+cd projects/agentic_portfolio
+uv venv
+uv pip install -e .
+uvicorn app.main:app --reload
+```
 
-## Where to read next
+Backend endpoints:
 
-- Main docs hub: `docs/README.md`
-- Product proposal and workflows: `docs/proposals/agentic_portfolio_mvp_proposal.md`
-- Latest plan snapshot list: `docs/plans/PLAN_VERSION_LOG.md`
-- Recent change log index: `docs/changes/INDEX.md`
+- `http://127.0.0.1:8000/docs`
+- `http://127.0.0.1:8000/health`
+- `http://127.0.0.1:8000/settings`
 
-If you're working with coding agents (OpenCode), start with:
+### 2) Run Desktop UI
 
-- `.opencode/README.md`
+```bash
+cd projects/desktop_app
+npm install
+npm run dev
+```
+
+Optional desktop shell runtime:
+
+```bash
+npm run tauri dev
+```
+
+## Verification Commands
+
+```bash
+cd projects/agentic_portfolio
+uv run pytest tests/test_end_to_end.py
+
+cd ../desktop_app
+npm run build
+```
+
+## Documentation
+
+- `AGENTS.md` - repository engineering and runtime guidance.
+- `projects/agentic_portfolio/README.md` - backend setup, API groups, and operations.
+- `projects/desktop_app/README.md` - frontend/desktop run instructions.
+- `runtime_agents/README.md` - runtime agent contracts and delegation model.
