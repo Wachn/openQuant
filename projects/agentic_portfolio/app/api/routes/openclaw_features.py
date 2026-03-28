@@ -8,6 +8,7 @@ from app.schemas import (
     OpenDataDatasetsRequest,
     OpenDataOverviewRequest,
     OpenDataSeriesRequest,
+    OpenStockCatalogRequest,
     OpenStockSearchRequest,
     OpenStockReferenceRequest,
     OpenStockSnapshotRequest,
@@ -87,6 +88,18 @@ def open_stock_search(payload: OpenStockSearchRequest, request: Request) -> dict
         return svc.search(query=payload.query, limit=payload.limit)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/open-stock/catalog")
+def open_stock_catalog(payload: OpenStockCatalogRequest, request: Request) -> dict[str, object]:
+    svc = request.app.state.open_stock_service
+    return svc.catalog(
+        query=payload.query,
+        exchange=payload.exchange,
+        stock_type=payload.stock_type,
+        limit=payload.limit,
+        offset=payload.offset,
+    )
 
 
 @router.post("/open-stock/snapshot")
@@ -214,6 +227,7 @@ def openclaw_features_contracts() -> dict[str, object]:
     return {
         "ui_feature_groups": {
             "overview": ["/openclaw/overview"],
+            "settings": ["/openclaw/settings", "/agent-router/settings"],
             "sessions": ["/runtime/chat/sessions", "/openclaw/instances"],
             "skills": ["/agent-router/status", "/plugins/capabilities", "/openclaw/nodes"],
             "usage": ["/openclaw/usage"],
@@ -226,4 +240,45 @@ def openclaw_features_contracts() -> dict[str, object]:
             "openbb_style_open_data": ["/open-data/datasets", "/open-data/overview", "/open-data/series"],
             "openstock_style_reference": ["/open-stock/search", "/open-stock/snapshot", "/open-stock/reference"],
         },
+    }
+
+
+@router.get("/openclaw/settings")
+def openclaw_settings(request: Request) -> dict[str, object]:
+    config = request.app.state.config
+    router_settings = request.app.state.flat_routing_agent_service.get_settings()
+    monitor = request.app.state.platform_service.monitor_status()
+    channels = request.app.state.channel_gateway_service.channels_status()
+    return {
+        "app_version": config.app_version,
+        "router": router_settings,
+        "monitor": monitor,
+        "scheduler": request.app.state.scheduler.status(),
+        "channels": channels,
+    }
+
+
+@router.get("/openclaw/heartbeat")
+def openclaw_heartbeat(request: Request) -> dict[str, object]:
+    scheduler = request.app.state.scheduler
+    monitor = request.app.state.platform_service.monitor_status()
+    channels = request.app.state.channel_gateway_service.channels_status()
+    return {
+        "scheduler": scheduler.status(),
+        "monitor": monitor,
+        "channels": channels,
+    }
+
+
+@router.get("/openclaw/cron")
+def openclaw_cron(request: Request) -> dict[str, object]:
+    store = request.app.state.v21_store
+    scheduler = request.app.state.scheduler
+    jobs = store.list_jobs()
+    job_runs = store.list_job_runs()
+    return {
+        "scheduler": scheduler.status(),
+        "jobs": jobs,
+        "job_runs": job_runs[:20],
+        "count": len(jobs),
     }

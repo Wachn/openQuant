@@ -17,7 +17,7 @@ class AppConfig(BaseSettings):
 
     app_name: str = "Agentic Portfolio Backend"
     app_env: str = Field(default="dev")
-    app_version: str = "0.1.0"
+    app_version: str = "0.2.0"
     host: str = "127.0.0.1"
     port: int = 8000
     data_dir: Path = Path("workspace")

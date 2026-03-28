@@ -30,7 +30,8 @@ Reference-integrated feature endpoints:
 
 - World monitor: `/world-monitor/feed`, `/world-monitor/sources`
 - Open data: `/open-data/datasets`, `/open-data/overview`, `/open-data/series`
-- Open stock: `/open-stock/search`, `/open-stock/snapshot`, `/open-stock/reference`
+- Open stock: `/open-stock/search`, `/open-stock/catalog`, `/open-stock/snapshot`, `/open-stock/reference`
+- OpenClaw runtime surfaces: `/openclaw/settings`, `/openclaw/heartbeat`, `/openclaw/cron`
 
 ## Runtime Model
 

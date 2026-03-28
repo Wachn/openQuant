@@ -168,7 +168,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await app.state.scheduler.stop()
 
 
-app = FastAPI(title="Agentic Portfolio Backend", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Agentic Portfolio Backend", version="0.2.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

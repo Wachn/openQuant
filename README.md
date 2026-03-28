@@ -6,7 +6,9 @@ Current integrated feature surfaces:
 
 - World monitor feed + source registry APIs with GUI controls for symbols, focus mode, and feed limits.
 - Open data APIs for datasets, quote overview, and historical series with GUI dataset/series rendering.
-- Open stock APIs for search, snapshots, and reference cards with peer context, connected to GUI inspect actions.
+- Open stock APIs for search, catalog browsing, snapshots, and reference cards with peer context, connected to GUI inspect actions.
+- OpenClaw-style settings, heartbeat, and cron status surfaces connected to the existing runtime workspace.
+- Stock candlestick rendering in the desktop Research workspace driven by open-data OHLC series.
 
 ## Repository Structure
 

@@ -6,7 +6,8 @@ Integrated reference-style GUI areas in the Research workspace:
 
 - World Monitor panel (symbols/focus/limit + live sources)
 - Open Data panel (dataset search, overview, and historical series preview)
-- Open Stock panel (search, snapshot, and reference inspect card)
+- Open Stock panel (search, catalog browser, snapshot, reference inspect card, and candlestick view)
+- OpenClaw-style runtime settings panel (router settings, heartbeat, cron jobs, cron runs)
 
 ## Prerequisite
 

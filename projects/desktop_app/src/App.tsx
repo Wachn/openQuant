@@ -387,6 +387,31 @@ interface FlatRouterStatus {
   updated_at: string;
 }
 
+interface FlatRouterSettingsResponse {
+  settings: JsonObject;
+}
+
+interface OpenClawHeartbeatResponse {
+  scheduler: JsonObject;
+  monitor: JsonObject;
+  channels: JsonObject[];
+}
+
+interface OpenClawCronResponse {
+  scheduler: JsonObject;
+  jobs: JsonObject[];
+  job_runs: JsonObject[];
+  count: number;
+}
+
+interface OpenClawSettingsResponse {
+  app_version: string;
+  router: JsonObject;
+  monitor: JsonObject;
+  scheduler: JsonObject;
+  channels: JsonObject[];
+}
+
 interface WorldMonitorSourceItem {
   source: string;
   url: string;
@@ -456,6 +481,15 @@ interface OpenStockSearchItem {
 interface OpenStockSearchResponse {
   query: string;
   items: OpenStockSearchItem[];
+  backend: string;
+  updated_at: string;
+}
+
+interface OpenStockCatalogResponse {
+  items: OpenStockSearchItem[];
+  total: number;
+  offset: number;
+  limit: number;
   backend: string;
   updated_at: string;
 }
@@ -591,6 +625,22 @@ function parseSymbolCsv(value: string): string[] {
     .filter((item) => item.length > 0);
 }
 
+function computeCandleChartMetrics(points: OpenDataSeriesPoint[]): {
+  min: number;
+  max: number;
+  range: number;
+} {
+  if (!points.length) {
+    return { min: 0, max: 1, range: 1 };
+  }
+  const lows = points.map((point) => point.low);
+  const highs = points.map((point) => point.high);
+  const min = Math.min(...lows);
+  const max = Math.max(...highs);
+  const range = Math.max(max - min, 1);
+  return { min, max, range };
+}
+
 function mapSymbolToAccountScope(symbol: string): Exclude<PortfolioAccountScope, "overall"> {
   let sum = 0;
   for (const char of symbol.toUpperCase()) {
@@ -723,6 +773,14 @@ export function App(): JSX.Element {
   const [flatRouterStatus, setFlatRouterStatus] = useState<FlatRouterStatus | null>(null);
   const [flatRouteInput, setFlatRouteInput] = useState("Monitor world macro risk for my holdings");
   const [flatRouteDecision, setFlatRouteDecision] = useState<FlatRouteDecision | null>(null);
+  const [flatRouterEngineInput, setFlatRouterEngineInput] = useState("openclaw_flat_router_v1");
+  const [flatRouterModeInput, setFlatRouterModeInput] = useState("flat");
+  const [flatRouterDefaultAgentInput, setFlatRouterDefaultAgentInput] = useState("suzybae");
+  const [flatRouterSkillsProfileInput, setFlatRouterSkillsProfileInput] = useState("openclaw_skeleton");
+  const [flatRouterGatewaysInput, setFlatRouterGatewaysInput] = useState("ibkr_cpapi,telegram,whatsapp");
+  const [openClawHeartbeat, setOpenClawHeartbeat] = useState<OpenClawHeartbeatResponse | null>(null);
+  const [openClawCron, setOpenClawCron] = useState<OpenClawCronResponse | null>(null);
+  const [openClawSettings, setOpenClawSettings] = useState<OpenClawSettingsResponse | null>(null);
   const [worldMonitorFeed, setWorldMonitorFeed] = useState<NewsFeedItem[]>([]);
   const [worldMonitorSources, setWorldMonitorSources] = useState<WorldMonitorSourceItem[]>([]);
   const [worldMonitorSymbols, setWorldMonitorSymbols] = useState("AAPL,MSFT,NVDA");
@@ -742,6 +800,13 @@ export function App(): JSX.Element {
   const [openStockActiveSymbol, setOpenStockActiveSymbol] = useState("AAPL");
   const [openStockReference, setOpenStockReference] = useState<OpenStockReferenceItem | null>(null);
   const [openStockSearchItems, setOpenStockSearchItems] = useState<OpenStockSearchItem[]>([]);
+  const [openStockCatalogItems, setOpenStockCatalogItems] = useState<OpenStockSearchItem[]>([]);
+  const [openStockCatalogQuery, setOpenStockCatalogQuery] = useState("");
+  const [openStockCatalogExchange, setOpenStockCatalogExchange] = useState("ALL");
+  const [openStockCatalogType, setOpenStockCatalogType] = useState("ALL");
+  const [openStockCatalogOffset, setOpenStockCatalogOffset] = useState(0);
+  const [openStockCatalogLimit, setOpenStockCatalogLimit] = useState(12);
+  const [openStockCatalogTotal, setOpenStockCatalogTotal] = useState(0);
   const [openStockSnapshotSymbols, setOpenStockSnapshotSymbols] = useState("AAPL,MSFT,NVDA");
   const [openStockSnapshotItems, setOpenStockSnapshotItems] = useState<OpenStockSnapshotItem[]>([]);
 
@@ -888,6 +953,12 @@ export function App(): JSX.Element {
         setWorldMonitorSources(worldSourcesResp.items);
         const flatStatus = await callApi<FlatRouterStatus>("/agent-router/status", "GET");
         setFlatRouterStatus(flatStatus);
+        setFlatRouterEngineInput(asString(flatStatus.settings.engine, "openclaw_flat_router_v1"));
+        setFlatRouterModeInput(asString(flatStatus.settings.routing_mode, "flat"));
+        setFlatRouterDefaultAgentInput(asString(flatStatus.settings.default_agent, "suzybae"));
+        setFlatRouterSkillsProfileInput(asString(flatStatus.settings.skills_profile, "openclaw_skeleton"));
+        const flatGateways = Array.isArray(flatStatus.settings.enabled_gateways) ? flatStatus.settings.enabled_gateways.join(",") : "ibkr_cpapi,telegram,whatsapp";
+        setFlatRouterGatewaysInput(flatGateways);
         const openDataOverviewResp = await callApi<OpenDataOverviewResponse>("/open-data/overview", "POST", {
           symbols: ["AAPL", "MSFT", "NVDA"],
           limit: 8,
@@ -904,12 +975,27 @@ export function App(): JSX.Element {
           limit: 8,
         });
         setOpenStockSnapshotItems(openStockResp.items);
+        const openStockCatalogResp = await callApi<OpenStockCatalogResponse>("/open-stock/catalog", "POST", {
+          query: undefined,
+          exchange: "ALL",
+          stock_type: "ALL",
+          limit: openStockCatalogLimit,
+          offset: 0,
+        });
+        setOpenStockCatalogItems(openStockCatalogResp.items);
+        setOpenStockCatalogTotal(openStockCatalogResp.total);
+        const openClawHeartbeatResp = await callApi<OpenClawHeartbeatResponse>("/openclaw/heartbeat", "GET");
+        setOpenClawHeartbeat(openClawHeartbeatResp);
+        const openClawCronResp = await callApi<OpenClawCronResponse>("/openclaw/cron", "GET");
+        setOpenClawCron(openClawCronResp);
+        const openClawSettingsResp = await callApi<OpenClawSettingsResponse>("/openclaw/settings", "GET");
+        setOpenClawSettings(openClawSettingsResp);
       } catch (e) {
         setError((e as Error).message);
       }
     };
     void loadBootstrap();
-  }, [runtimeAgentId, worldMonitorFocusMode, worldMonitorLimit, worldMonitorSymbols, openDataQuery]);
+  }, [runtimeAgentId, worldMonitorFocusMode, worldMonitorLimit, worldMonitorSymbols, openDataQuery, openStockCatalogLimit]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("portfolio-desk-theme");
@@ -2122,6 +2208,41 @@ export function App(): JSX.Element {
     try {
       const data = await callApi<FlatRouterStatus>("/agent-router/status", "GET");
       setFlatRouterStatus(data);
+      setFlatRouterEngineInput(asString(data.settings.engine, "openclaw_flat_router_v1"));
+      setFlatRouterModeInput(asString(data.settings.routing_mode, "flat"));
+      setFlatRouterDefaultAgentInput(asString(data.settings.default_agent, "suzybae"));
+      setFlatRouterSkillsProfileInput(asString(data.settings.skills_profile, "openclaw_skeleton"));
+      const gateways = Array.isArray(data.settings.enabled_gateways) ? data.settings.enabled_gateways.join(",") : "ibkr_cpapi,telegram,whatsapp";
+      setFlatRouterGatewaysInput(gateways);
+      await loadOpenClawSettings();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveFlatRouterSettings = async (): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      const payload = {
+        engine: flatRouterEngineInput.trim(),
+        routing_mode: flatRouterModeInput.trim(),
+        default_agent: flatRouterDefaultAgentInput.trim(),
+        skills_profile: flatRouterSkillsProfileInput.trim(),
+        enabled_gateways: flatRouterGatewaysInput.split(",").map((item) => item.trim()).filter((item) => item.length > 0),
+      };
+      const data = await callApi<FlatRouterSettingsResponse>("/agent-router/settings", "POST", payload);
+      setFlatRouterStatus((prev) => ({
+        settings: data.settings,
+        agents: prev?.agents ?? [],
+        skills: prev?.skills ?? [],
+        providers: prev?.providers ?? {},
+        channels: prev?.channels ?? {},
+        updated_at: new Date().toISOString(),
+      }));
+      await loadFlatRouterStatus();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -2176,6 +2297,33 @@ export function App(): JSX.Element {
       setWorldMonitorSources(data.items);
     } catch {
       setWorldMonitorSources([]);
+    }
+  };
+
+  const loadOpenClawHeartbeat = async (): Promise<void> => {
+    try {
+      const data = await callApi<OpenClawHeartbeatResponse>("/openclaw/heartbeat", "GET");
+      setOpenClawHeartbeat(data);
+    } catch {
+      setOpenClawHeartbeat(null);
+    }
+  };
+
+  const loadOpenClawCron = async (): Promise<void> => {
+    try {
+      const data = await callApi<OpenClawCronResponse>("/openclaw/cron", "GET");
+      setOpenClawCron(data);
+    } catch {
+      setOpenClawCron(null);
+    }
+  };
+
+  const loadOpenClawSettings = async (): Promise<void> => {
+    try {
+      const data = await callApi<OpenClawSettingsResponse>("/openclaw/settings", "GET");
+      setOpenClawSettings(data);
+    } catch {
+      setOpenClawSettings(null);
     }
   };
 
@@ -2238,6 +2386,23 @@ export function App(): JSX.Element {
     }
   };
 
+  const loadOpenDataSeriesForSymbol = async (symbol: string): Promise<void> => {
+    const normalized = symbol.trim().toUpperCase();
+    if (!normalized) {
+      return;
+    }
+    const data = await callApi<OpenDataSeriesResponse>("/open-data/series", "POST", {
+      symbol: normalized,
+      dataset_id: "equity_price_history",
+      interval: openDataSeriesInterval,
+      limit: Math.max(10, Math.min(openDataSeriesLimit, 300)),
+    });
+    setOpenDataSeriesSymbol(normalized);
+    setOpenDataSeries(data.points);
+    setOpenDataSeriesBackend(data.backend);
+    setOpenDataOpenbbAvailable(data.openbb_available);
+  };
+
   const searchOpenStock = async (): Promise<void> => {
     const query = openStockQuery.trim();
     if (!query) {
@@ -2257,12 +2422,80 @@ export function App(): JSX.Element {
         setOpenStockSnapshotSymbols(topSymbols);
         setOpenStockActiveSymbol(data.items[0].symbol);
         await loadOpenStockReference(data.items[0].symbol);
+        await loadOpenDataSeriesForSymbol(data.items[0].symbol);
         const snapshot = await callApi<OpenStockSnapshotResponse>("/open-stock/snapshot", "POST", {
           symbols: data.items.slice(0, 5).map((item) => item.symbol),
           limit: 5,
         });
         setOpenStockSnapshotItems(snapshot.items);
       }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const loadOpenStockCatalog = async (): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      const data = await callApi<OpenStockCatalogResponse>("/open-stock/catalog", "POST", {
+        query: openStockCatalogQuery.trim() || undefined,
+        exchange: openStockCatalogExchange,
+        stock_type: openStockCatalogType,
+        limit: openStockCatalogLimit,
+        offset: openStockCatalogOffset,
+      });
+      setOpenStockCatalogItems(data.items);
+      setOpenStockCatalogTotal(data.total);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openStockCatalogNextPage = async (): Promise<void> => {
+    const nextOffset = openStockCatalogOffset + openStockCatalogLimit;
+    if (nextOffset >= openStockCatalogTotal) {
+      return;
+    }
+    setOpenStockCatalogOffset(nextOffset);
+    setBusy(true);
+    setError(null);
+    try {
+      const data = await callApi<OpenStockCatalogResponse>("/open-stock/catalog", "POST", {
+        query: openStockCatalogQuery.trim() || undefined,
+        exchange: openStockCatalogExchange,
+        stock_type: openStockCatalogType,
+        limit: openStockCatalogLimit,
+        offset: nextOffset,
+      });
+      setOpenStockCatalogItems(data.items);
+      setOpenStockCatalogTotal(data.total);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openStockCatalogPrevPage = async (): Promise<void> => {
+    const nextOffset = Math.max(0, openStockCatalogOffset - openStockCatalogLimit);
+    setOpenStockCatalogOffset(nextOffset);
+    setBusy(true);
+    setError(null);
+    try {
+      const data = await callApi<OpenStockCatalogResponse>("/open-stock/catalog", "POST", {
+        query: openStockCatalogQuery.trim() || undefined,
+        exchange: openStockCatalogExchange,
+        stock_type: openStockCatalogType,
+        limit: openStockCatalogLimit,
+        offset: nextOffset,
+      });
+      setOpenStockCatalogItems(data.items);
+      setOpenStockCatalogTotal(data.total);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -2283,6 +2516,7 @@ export function App(): JSX.Element {
       if (data.items.length) {
         setOpenStockActiveSymbol(data.items[0].symbol);
         await loadOpenStockReference(data.items[0].symbol);
+        await loadOpenDataSeriesForSymbol(data.items[0].symbol);
       }
     } catch (e) {
       setError((e as Error).message);
@@ -2320,6 +2554,7 @@ export function App(): JSX.Element {
       setOpenStockSnapshotSymbols(normalized);
       setOpenStockSnapshotItems(data.items);
       await loadOpenStockReference(normalized);
+      await loadOpenDataSeriesForSymbol(normalized);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -2436,8 +2671,12 @@ export function App(): JSX.Element {
         worldResp,
         worldSourcesResp,
         flatStatusResp,
+        openClawHeartbeatResp,
+        openClawCronResp,
+        openClawSettingsResp,
         openDataDatasetsResp,
         openDataOverviewResp,
+        openStockCatalogResp,
         openStockSnapshotResp,
         monitorResp,
         ibkrResp,
@@ -2455,8 +2694,12 @@ export function App(): JSX.Element {
         }),
         callApi<WorldMonitorSourcesResponse>("/world-monitor/sources", "GET"),
         callApi<FlatRouterStatus>("/agent-router/status", "GET"),
+        callApi<OpenClawHeartbeatResponse>("/openclaw/heartbeat", "GET"),
+        callApi<OpenClawCronResponse>("/openclaw/cron", "GET"),
+        callApi<OpenClawSettingsResponse>("/openclaw/settings", "GET"),
         callApi<OpenDataDatasetsResponse>("/open-data/datasets", "POST", { query: openDataQuery, limit: 12 }),
         callApi<OpenDataOverviewResponse>("/open-data/overview", "POST", { symbols: trackedSymbols, limit: 8 }),
+        callApi<OpenStockCatalogResponse>("/open-stock/catalog", "POST", { query: openStockCatalogQuery || undefined, exchange: openStockCatalogExchange, stock_type: openStockCatalogType, limit: openStockCatalogLimit, offset: openStockCatalogOffset }),
         callApi<OpenStockSnapshotResponse>("/open-stock/snapshot", "POST", { symbols: trackedSymbols, limit: 8 }),
         callApi<JsonObject>("/monitor/refresh-now", "POST"),
         callApi<IbkrSessionStatus>("/market/ibkr/session", "GET"),
@@ -2475,9 +2718,14 @@ export function App(): JSX.Element {
       setWorldMonitorFeed(worldResp.items);
       setWorldMonitorSources(worldSourcesResp.items);
       setFlatRouterStatus(flatStatusResp);
+      setOpenClawHeartbeat(openClawHeartbeatResp);
+      setOpenClawCron(openClawCronResp);
+      setOpenClawSettings(openClawSettingsResp);
       setOpenDataDatasets(openDataDatasetsResp.items);
       setOpenDataOverview(openDataOverviewResp.items);
       setOpenDataOpenbbAvailable(openDataOverviewResp.openbb_available);
+      setOpenStockCatalogItems(openStockCatalogResp.items);
+      setOpenStockCatalogTotal(openStockCatalogResp.total);
       setOpenStockSnapshotItems(openStockSnapshotResp.items);
       setMonitorStatus(monitorResp);
       setIbkrSessionStatus(ibkrResp);
@@ -2495,6 +2743,11 @@ export function App(): JSX.Element {
     newsClassFilter,
     trackedSymbols,
     openDataQuery,
+    openStockCatalogExchange,
+    openStockCatalogLimit,
+    openStockCatalogOffset,
+    openStockCatalogQuery,
+    openStockCatalogType,
     worldMonitorFocusMode,
     worldMonitorLimit,
     worldMonitorSymbols,
@@ -3504,12 +3757,49 @@ export function App(): JSX.Element {
                   <input value={flatRouteInput} onChange={(event) => setFlatRouteInput(event.target.value)} placeholder="Route prompt" />
                   <button type="button" onClick={runFlatRouterDecision} disabled={busy}>Route</button>
                   <button type="button" onClick={loadFlatRouterStatus} disabled={busy}>Status</button>
+                  <button type="button" onClick={saveFlatRouterSettings} disabled={busy}>Save Settings</button>
+                </div>
+                <div className="action-row">
+                  <input value={flatRouterEngineInput} onChange={(event) => setFlatRouterEngineInput(event.target.value)} placeholder="Engine" />
+                  <input value={flatRouterModeInput} onChange={(event) => setFlatRouterModeInput(event.target.value)} placeholder="Mode" />
+                </div>
+                <div className="action-row">
+                  <input value={flatRouterDefaultAgentInput} onChange={(event) => setFlatRouterDefaultAgentInput(event.target.value)} placeholder="Default agent" />
+                  <input value={flatRouterSkillsProfileInput} onChange={(event) => setFlatRouterSkillsProfileInput(event.target.value)} placeholder="Skills profile" />
+                </div>
+                <div className="action-row">
+                  <input value={flatRouterGatewaysInput} onChange={(event) => setFlatRouterGatewaysInput(event.target.value)} placeholder="Gateways CSV" />
+                  <button type="button" onClick={loadOpenClawSettings} disabled={busy}>Reload Config</button>
+                  <button type="button" onClick={loadOpenClawHeartbeat} disabled={busy}>Heartbeat</button>
+                  <button type="button" onClick={loadOpenClawCron} disabled={busy}>Cron</button>
                 </div>
                 <div className="compact-output">
                   <p><strong>Engine:</strong> {asString(flatRouterStatus?.settings?.engine)}</p>
                   <p><strong>Mode:</strong> {asString(flatRouterStatus?.settings?.routing_mode)}</p>
                   <p><strong>Default Agent:</strong> {asString(flatRouterStatus?.settings?.default_agent)}</p>
                   <p><strong>Agents:</strong> {flatRouterStatus?.agents?.length ?? 0} | <strong>Skills:</strong> {flatRouterStatus?.skills?.length ?? 0}</p>
+                </div>
+                <div className="compact-output">
+                  <p><strong>Version:</strong> {openClawSettings?.app_version ?? "-"}</p>
+                  <p><strong>Heartbeat:</strong> {asString(openClawHeartbeat?.scheduler?.heartbeat)}</p>
+                  <p><strong>Scheduler Running:</strong> {String(openClawHeartbeat?.scheduler?.running ?? false)}</p>
+                  <p><strong>Cron Jobs:</strong> {openClawCron?.count ?? 0}</p>
+                </div>
+                <div className="list-box">
+                  {openClawCron?.jobs?.length ? openClawCron.jobs.slice(0, 6).map((job) => (
+                    <div key={`cron-job-${asString(job.job_id, asString(job.name, "job"))}`} className="list-item">
+                      <strong>{asString(job.name, asString(job.job_id, "job"))}</strong>
+                      <span>{asString(job.job_type)} | {asString(job.schedule_cron, "manual")}</span>
+                    </div>
+                  )) : <p className="muted">No cron jobs registered.</p>}
+                </div>
+                <div className="list-box">
+                  {openClawCron?.job_runs?.length ? openClawCron.job_runs.slice(0, 6).map((run) => (
+                    <div key={`cron-run-${asString(run.job_run_id, asString(run.job_id, "run"))}`} className="list-item">
+                      <strong>{asString(run.job_id, "job-run")}</strong>
+                      <span>{asString(run.status)} | attempt {asString(run.attempt, "0")}</span>
+                    </div>
+                  )) : <p className="muted">No cron runs recorded.</p>}
                 </div>
                 {flatRouteDecision ? (
                   <div className="compact-output">
@@ -3607,19 +3897,54 @@ export function App(): JSX.Element {
                   <button type="button" onClick={searchOpenStock} disabled={busy}>Search</button>
                 </div>
                 <div className="action-row">
+                  <input value={openStockCatalogQuery} onChange={(event) => setOpenStockCatalogQuery(event.target.value)} placeholder="Catalog query" />
+                  <select value={openStockCatalogExchange} onChange={(event) => setOpenStockCatalogExchange(event.target.value)}>
+                    <option value="ALL">All exchanges</option>
+                    <option value="NASDAQ">NASDAQ</option>
+                    <option value="NYSE">NYSE</option>
+                    <option value="NYSEARCA">NYSEARCA</option>
+                  </select>
+                  <select value={openStockCatalogType} onChange={(event) => setOpenStockCatalogType(event.target.value)}>
+                    <option value="ALL">All types</option>
+                    <option value="EQUITY">Equity</option>
+                    <option value="ETF">ETF</option>
+                  </select>
+                  <input type="number" min={5} max={30} value={openStockCatalogLimit} onChange={(event) => setOpenStockCatalogLimit(Number(event.target.value) || 12)} placeholder="Rows" />
+                  <button type="button" onClick={loadOpenStockCatalog} disabled={busy}>Catalog</button>
+                </div>
+                <div className="action-row">
                   <input value={openStockSnapshotSymbols} onChange={(event) => setOpenStockSnapshotSymbols(event.target.value)} placeholder="Snapshot symbols CSV" />
                   <button type="button" onClick={loadOpenStockSnapshot} disabled={busy}>Snapshot</button>
                 </div>
                 <div className="compact-output">
                   <p><strong>Search rows:</strong> {openStockSearchItems.length}</p>
+                  <p><strong>Catalog rows:</strong> {openStockCatalogItems.length} / {openStockCatalogTotal}</p>
                   <p><strong>Snapshot rows:</strong> {openStockSnapshotItems.length}</p>
                   <p><strong>Active Symbol:</strong> {openStockActiveSymbol || "-"}</p>
+                </div>
+                <div className="compact-output">
+                  <p><strong>Portfolio Lens:</strong> {watchlists[activeWatchlistId]?.includes(openStockActiveSymbol) ? "Tracked in watchlist" : "Reference only"}</p>
+                  <p><strong>Account Scope:</strong> {portfolioAccountScope}</p>
+                  <p><strong>Primary Research Symbol:</strong> {openDataSeriesSymbol}</p>
                 </div>
                 <div className="compact-output">
                   <p><strong>Name:</strong> {openStockReference?.name ?? "-"}</p>
                   <p><strong>Day Range:</strong> {openStockReference ? `${openStockReference.day_low.toFixed(2)} - ${openStockReference.day_high.toFixed(2)}` : "-"}</p>
                   <p><strong>52W Range:</strong> {openStockReference ? `${openStockReference.year_low.toFixed(2)} - ${openStockReference.year_high.toFixed(2)}` : "-"}</p>
                   <p><strong>Quote:</strong> {openStockReference?.website ? <a href={openStockReference.website} target="_blank" rel="noreferrer">Open</a> : "-"}</p>
+                </div>
+                <div className="list-box">
+                  {openStockCatalogItems.length ? openStockCatalogItems.map((item) => (
+                    <div key={`openstock-catalog-${item.symbol}`} className="list-item">
+                      <strong>{item.symbol} | {item.name}</strong>
+                      <span>{item.exchange} | {item.type}</span>
+                      <button type="button" onClick={() => { void inspectOpenStockSymbol(item.symbol); }} disabled={busy}>Open</button>
+                    </div>
+                  )) : <p className="muted">No open stock catalog loaded.</p>}
+                </div>
+                <div className="action-row">
+                  <button type="button" onClick={openStockCatalogPrevPage} disabled={busy || openStockCatalogOffset === 0}>Prev</button>
+                  <button type="button" onClick={openStockCatalogNextPage} disabled={busy || openStockCatalogOffset + openStockCatalogLimit >= openStockCatalogTotal}>Next</button>
                 </div>
                 <div className="list-box">
                   {openStockSearchItems.length ? openStockSearchItems.slice(0, 6).map((item) => (
@@ -3639,6 +3964,40 @@ export function App(): JSX.Element {
                       <p className="muted">Market Cap: {formatCompactNumber(item.market_cap)} | Volume: {formatCompactNumber(item.volume)}</p>
                     </div>
                   )) : <p className="muted">No open stock snapshot loaded.</p>}
+                </div>
+                <div className="panel inset-panel">
+                  <h4>{openStockActiveSymbol} Candlestick</h4>
+                  <div className="action-row">
+                    <button type="button" onClick={loadOpenDataSeries} disabled={busy}>Refresh Candles</button>
+                  </div>
+                  {openDataSeries.length ? (() => {
+                    const chartPoints = openDataSeries.slice(-30);
+                    const metrics = computeCandleChartMetrics(chartPoints);
+                    const width = 640;
+                    const height = 240;
+                    const candleWidth = Math.max(6, Math.floor(width / Math.max(chartPoints.length, 1)) - 4);
+                    return (
+                      <svg viewBox={`0 0 ${width} ${height}`} className="chart-surface" role="img" aria-label={`${openStockActiveSymbol} candlestick chart`}>
+                        {chartPoints.map((point, index) => {
+                          const x = 12 + index * (candleWidth + 4);
+                          const toY = (value: number) => 10 + ((metrics.max - value) / metrics.range) * (height - 20);
+                          const openY = toY(point.open);
+                          const closeY = toY(point.close);
+                          const highY = toY(point.high);
+                          const lowY = toY(point.low);
+                          const candleTop = Math.min(openY, closeY);
+                          const candleHeight = Math.max(Math.abs(closeY - openY), 2);
+                          const rising = point.close >= point.open;
+                          return (
+                            <g key={`candle-${point.ts}`}>
+                              <line x1={x + candleWidth / 2} y1={highY} x2={x + candleWidth / 2} y2={lowY} stroke={rising ? "#18a957" : "#d64545"} strokeWidth="2" />
+                              <rect x={x} y={candleTop} width={candleWidth} height={candleHeight} fill={rising ? "#18a957" : "#d64545"} rx="1" />
+                            </g>
+                          );
+                        })}
+                      </svg>
+                    );
+                  })() : <p className="muted">Load open data series to render candlesticks.</p>}
                 </div>
               </article>
               <article className="panel">

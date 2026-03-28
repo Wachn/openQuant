@@ -300,6 +300,14 @@ class OpenStockSnapshotRequest(BaseModel):
     limit: int = 20
 
 
+class OpenStockCatalogRequest(BaseModel):
+    query: str | None = None
+    exchange: str | None = None
+    stock_type: str | None = None
+    limit: int = 50
+    offset: int = 0
+
+
 class OpenStockReferenceRequest(BaseModel):
     symbol: str
 

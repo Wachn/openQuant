@@ -28,3 +28,10 @@ class Scheduler:
                 await self._task
             except asyncio.CancelledError:
                 pass
+
+    def status(self) -> dict[str, object]:
+        return {
+            "enabled": self.enabled,
+            "running": self._running,
+            "heartbeat": "alive" if self._running else "idle",
+        }
