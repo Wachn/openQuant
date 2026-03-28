@@ -300,6 +300,10 @@ class OpenStockSnapshotRequest(BaseModel):
     limit: int = 20
 
 
+class OpenStockReferenceRequest(BaseModel):
+    symbol: str
+
+
 class GatewayTestMessageRequest(BaseModel):
     text: str = "Agentic Portfolio gateway test"
 

@@ -265,6 +265,7 @@ interface NewsFeedItem {
   summary: string;
   news_category?: string;
   news_class?: string;
+  world_source?: string;
   url: string;
   thumbnail_url?: string;
   published_at: string;
@@ -386,8 +387,24 @@ interface FlatRouterStatus {
   updated_at: string;
 }
 
+interface WorldMonitorSourceItem {
+  source: string;
+  url: string;
+}
+
+interface WorldMonitorSourcesResponse {
+  items: WorldMonitorSourceItem[];
+}
+
+interface OpenDataDatasetItem {
+  dataset_id: string;
+  label: string;
+  description: string;
+  provider: string;
+}
+
 interface OpenDataDatasetsResponse {
-  items: JsonObject[];
+  items: OpenDataDatasetItem[];
   openbb_available: boolean;
   updated_at: string;
 }
@@ -462,6 +479,21 @@ interface OpenStockSnapshotResponse {
   updated_at: string;
 }
 
+interface OpenStockReferenceItem extends OpenStockSnapshotItem {
+  day_high: number;
+  day_low: number;
+  year_high: number;
+  year_low: number;
+  website: string;
+}
+
+interface OpenStockReferenceResponse {
+  item: OpenStockReferenceItem;
+  peers: OpenStockSearchItem[];
+  backend: string;
+  updated_at: string;
+}
+
 const RUNTIME_PUBLIC_COMMANDS = ["/new", "/sessions", "/models", "/connect", "/agent"];
 const HIDDEN_SUZY_COMMAND = "/activatesuzy";
 const RUNTIME_VARIANTS = ["default", "fast", "deep"];
@@ -530,6 +562,26 @@ function formatQuoteValue(value: number, currency: string): string {
 function formatQuoteChange(value: number): string {
   const pct = `${Math.abs(value * 100).toFixed(2)}%`;
   return value >= 0 ? `+${pct}` : `-${pct}`;
+}
+
+function formatCompactNumber(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000_000_000) {
+    return `${(value / 1_000_000_000_000).toFixed(2)}T`;
+  }
+  if (abs >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toFixed(2)}B`;
+  }
+  if (abs >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(2)}M`;
+  }
+  if (abs >= 1_000) {
+    return `${(value / 1_000).toFixed(2)}K`;
+  }
+  return value.toFixed(0);
 }
 
 function parseSymbolCsv(value: string): string[] {
@@ -672,15 +724,23 @@ export function App(): JSX.Element {
   const [flatRouteInput, setFlatRouteInput] = useState("Monitor world macro risk for my holdings");
   const [flatRouteDecision, setFlatRouteDecision] = useState<FlatRouteDecision | null>(null);
   const [worldMonitorFeed, setWorldMonitorFeed] = useState<NewsFeedItem[]>([]);
+  const [worldMonitorSources, setWorldMonitorSources] = useState<WorldMonitorSourceItem[]>([]);
+  const [worldMonitorSymbols, setWorldMonitorSymbols] = useState("AAPL,MSFT,NVDA");
+  const [worldMonitorLimit, setWorldMonitorLimit] = useState(18);
+  const [worldMonitorFocusMode, setWorldMonitorFocusMode] = useState<"general" | "focused">("general");
   const [openDataQuery, setOpenDataQuery] = useState("equity");
-  const [openDataDatasets, setOpenDataDatasets] = useState<JsonObject[]>([]);
+  const [openDataDatasets, setOpenDataDatasets] = useState<OpenDataDatasetItem[]>([]);
   const [openDataOverviewSymbols, setOpenDataOverviewSymbols] = useState("AAPL,MSFT,NVDA");
   const [openDataOverview, setOpenDataOverview] = useState<OpenDataOverviewItem[]>([]);
   const [openDataSeriesSymbol, setOpenDataSeriesSymbol] = useState("AAPL");
+  const [openDataSeriesInterval, setOpenDataSeriesInterval] = useState("1d");
+  const [openDataSeriesLimit, setOpenDataSeriesLimit] = useState(120);
   const [openDataSeries, setOpenDataSeries] = useState<OpenDataSeriesPoint[]>([]);
   const [openDataSeriesBackend, setOpenDataSeriesBackend] = useState("openbb_bridge");
   const [openDataOpenbbAvailable, setOpenDataOpenbbAvailable] = useState(false);
   const [openStockQuery, setOpenStockQuery] = useState("NVIDIA");
+  const [openStockActiveSymbol, setOpenStockActiveSymbol] = useState("AAPL");
+  const [openStockReference, setOpenStockReference] = useState<OpenStockReferenceItem | null>(null);
   const [openStockSearchItems, setOpenStockSearchItems] = useState<OpenStockSearchItem[]>([]);
   const [openStockSnapshotSymbols, setOpenStockSnapshotSymbols] = useState("AAPL,MSFT,NVDA");
   const [openStockSnapshotItems, setOpenStockSnapshotItems] = useState<OpenStockSnapshotItem[]>([]);
@@ -819,11 +879,13 @@ export function App(): JSX.Element {
           focusMode: newsResp.focus_mode === "focused" ? "focused" : "general",
         });
         const worldResp = await callApi<{ items: NewsFeedItem[] }>("/world-monitor/feed", "POST", {
-          symbols: ["AAPL", "MSFT", "NVDA"],
-          limit: 12,
-          focus_mode: "general",
+          symbols: parseSymbolCsv(worldMonitorSymbols),
+          limit: Math.max(1, Math.min(worldMonitorLimit, 50)),
+          focus_mode: worldMonitorFocusMode,
         });
         setWorldMonitorFeed(worldResp.items);
+        const worldSourcesResp = await callApi<WorldMonitorSourcesResponse>("/world-monitor/sources", "GET");
+        setWorldMonitorSources(worldSourcesResp.items);
         const flatStatus = await callApi<FlatRouterStatus>("/agent-router/status", "GET");
         setFlatRouterStatus(flatStatus);
         const openDataOverviewResp = await callApi<OpenDataOverviewResponse>("/open-data/overview", "POST", {
@@ -832,6 +894,11 @@ export function App(): JSX.Element {
         });
         setOpenDataOverview(openDataOverviewResp.items);
         setOpenDataOpenbbAvailable(openDataOverviewResp.openbb_available);
+        const openDataDatasetsResp = await callApi<OpenDataDatasetsResponse>("/open-data/datasets", "POST", {
+          query: openDataQuery,
+          limit: 12,
+        });
+        setOpenDataDatasets(openDataDatasetsResp.items);
         const openStockResp = await callApi<OpenStockSnapshotResponse>("/open-stock/snapshot", "POST", {
           symbols: ["AAPL", "MSFT", "NVDA"],
           limit: 8,
@@ -842,7 +909,7 @@ export function App(): JSX.Element {
       }
     };
     void loadBootstrap();
-  }, [runtimeAgentId]);
+  }, [runtimeAgentId, worldMonitorFocusMode, worldMonitorLimit, worldMonitorSymbols, openDataQuery]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("portfolio-desk-theme");
@@ -2088,16 +2155,27 @@ export function App(): JSX.Element {
     setBusy(true);
     setError(null);
     try {
+      const selectedSymbols = parseSymbolCsv(worldMonitorSymbols);
       const data = await callApi<{ items: NewsFeedItem[] }>("/world-monitor/feed", "POST", {
-        symbols: trackedSymbols,
-        limit: 18,
-        focus_mode: feedFocusMode,
+        symbols: selectedSymbols.length ? selectedSymbols : trackedSymbols,
+        limit: Math.max(1, Math.min(worldMonitorLimit, 50)),
+        focus_mode: worldMonitorFocusMode,
       });
       setWorldMonitorFeed(data.items);
+      await loadWorldMonitorSources();
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const loadWorldMonitorSources = async (): Promise<void> => {
+    try {
+      const data = await callApi<WorldMonitorSourcesResponse>("/world-monitor/sources", "GET");
+      setWorldMonitorSources(data.items);
+    } catch {
+      setWorldMonitorSources([]);
     }
   };
 
@@ -2147,8 +2225,8 @@ export function App(): JSX.Element {
       const data = await callApi<OpenDataSeriesResponse>("/open-data/series", "POST", {
         symbol,
         dataset_id: "equity_price_history",
-        interval: "1d",
-        limit: 120,
+        interval: openDataSeriesInterval,
+        limit: Math.max(10, Math.min(openDataSeriesLimit, 300)),
       });
       setOpenDataSeries(data.points);
       setOpenDataSeriesBackend(data.backend);
@@ -2174,6 +2252,17 @@ export function App(): JSX.Element {
         limit: 12,
       });
       setOpenStockSearchItems(data.items);
+      if (data.items.length) {
+        const topSymbols = data.items.slice(0, 5).map((item) => item.symbol).join(",");
+        setOpenStockSnapshotSymbols(topSymbols);
+        setOpenStockActiveSymbol(data.items[0].symbol);
+        await loadOpenStockReference(data.items[0].symbol);
+        const snapshot = await callApi<OpenStockSnapshotResponse>("/open-stock/snapshot", "POST", {
+          symbols: data.items.slice(0, 5).map((item) => item.symbol),
+          limit: 5,
+        });
+        setOpenStockSnapshotItems(snapshot.items);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -2185,11 +2274,52 @@ export function App(): JSX.Element {
     setBusy(true);
     setError(null);
     try {
+      const selectedSymbols = parseSymbolCsv(openStockSnapshotSymbols);
       const data = await callApi<OpenStockSnapshotResponse>("/open-stock/snapshot", "POST", {
-        symbols: parseSymbolCsv(openStockSnapshotSymbols),
+        symbols: selectedSymbols,
         limit: 12,
       });
       setOpenStockSnapshotItems(data.items);
+      if (data.items.length) {
+        setOpenStockActiveSymbol(data.items[0].symbol);
+        await loadOpenStockReference(data.items[0].symbol);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const loadOpenStockReference = async (symbol: string): Promise<void> => {
+    const normalized = symbol.trim().toUpperCase();
+    if (!normalized) {
+      return;
+    }
+    try {
+      const data = await callApi<OpenStockReferenceResponse>("/open-stock/reference", "POST", { symbol: normalized });
+      setOpenStockReference(data.item);
+    } catch {
+      setOpenStockReference(null);
+    }
+  };
+
+  const inspectOpenStockSymbol = async (symbol: string): Promise<void> => {
+    const normalized = symbol.trim().toUpperCase();
+    if (!normalized) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const data = await callApi<OpenStockSnapshotResponse>("/open-stock/snapshot", "POST", {
+        symbols: [normalized],
+        limit: 1,
+      });
+      setOpenStockActiveSymbol(normalized);
+      setOpenStockSnapshotSymbols(normalized);
+      setOpenStockSnapshotItems(data.items);
+      await loadOpenStockReference(normalized);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -2304,7 +2434,9 @@ export function App(): JSX.Element {
         quotesResp,
         newsResp,
         worldResp,
+        worldSourcesResp,
         flatStatusResp,
+        openDataDatasetsResp,
         openDataOverviewResp,
         openStockSnapshotResp,
         monitorResp,
@@ -2316,8 +2448,14 @@ export function App(): JSX.Element {
         callApi<{ change_requests: RuntimeChangeRequest[] }>("/runtime/change-requests", "GET"),
         callApi<MarketQuotesResponse>("/market/quotes", "POST", { instruments: TOP_INDEX_INSTRUMENTS, focus_mode: feedFocusMode }),
         callApi<NewsFeedResponse>("/news/feed", "POST", { symbols: trackedSymbols, sources: selectedSources, categories: selectedCategories, classes: selectedClasses, limit: 24, focus_mode: feedFocusMode }),
-        callApi<{ items: NewsFeedItem[] }>("/world-monitor/feed", "POST", { symbols: trackedSymbols, limit: 18, focus_mode: feedFocusMode }),
+        callApi<{ items: NewsFeedItem[] }>("/world-monitor/feed", "POST", {
+          symbols: parseSymbolCsv(worldMonitorSymbols).length ? parseSymbolCsv(worldMonitorSymbols) : trackedSymbols,
+          limit: Math.max(1, Math.min(worldMonitorLimit, 50)),
+          focus_mode: worldMonitorFocusMode,
+        }),
+        callApi<WorldMonitorSourcesResponse>("/world-monitor/sources", "GET"),
         callApi<FlatRouterStatus>("/agent-router/status", "GET"),
+        callApi<OpenDataDatasetsResponse>("/open-data/datasets", "POST", { query: openDataQuery, limit: 12 }),
         callApi<OpenDataOverviewResponse>("/open-data/overview", "POST", { symbols: trackedSymbols, limit: 8 }),
         callApi<OpenStockSnapshotResponse>("/open-stock/snapshot", "POST", { symbols: trackedSymbols, limit: 8 }),
         callApi<JsonObject>("/monitor/refresh-now", "POST"),
@@ -2335,7 +2473,9 @@ export function App(): JSX.Element {
         focusMode: newsResp.focus_mode === "focused" ? "focused" : "general",
       });
       setWorldMonitorFeed(worldResp.items);
+      setWorldMonitorSources(worldSourcesResp.items);
       setFlatRouterStatus(flatStatusResp);
+      setOpenDataDatasets(openDataDatasetsResp.items);
       setOpenDataOverview(openDataOverviewResp.items);
       setOpenDataOpenbbAvailable(openDataOverviewResp.openbb_available);
       setOpenStockSnapshotItems(openStockSnapshotResp.items);
@@ -2348,7 +2488,17 @@ export function App(): JSX.Element {
     } finally {
       setBusy(false);
     }
-  }, [feedFocusMode, newsSourceFilter, newsCategoryFilter, newsClassFilter, trackedSymbols]);
+  }, [
+    feedFocusMode,
+    newsSourceFilter,
+    newsCategoryFilter,
+    newsClassFilter,
+    trackedSymbols,
+    openDataQuery,
+    worldMonitorFocusMode,
+    worldMonitorLimit,
+    worldMonitorSymbols,
+  ]);
 
   const handleRuntimeInputKeyDown = (event: { key: string; ctrlKey: boolean; altKey: boolean; shiftKey: boolean; preventDefault: () => void }): void => {
     if (event.key === "Enter" && event.ctrlKey) {
@@ -3373,6 +3523,12 @@ export function App(): JSX.Element {
               <article className="panel">
                 <h3>World Monitor</h3>
                 <div className="action-row">
+                  <input value={worldMonitorSymbols} onChange={(event) => setWorldMonitorSymbols(event.target.value)} placeholder="Symbols CSV" />
+                  <select value={worldMonitorFocusMode} onChange={(event) => setWorldMonitorFocusMode(event.target.value as "general" | "focused")}>
+                    <option value="general">General</option>
+                    <option value="focused">Focused</option>
+                  </select>
+                  <input type="number" min={1} max={50} value={worldMonitorLimit} onChange={(event) => setWorldMonitorLimit(Number(event.target.value) || 18)} placeholder="Limit" />
                   <button type="button" onClick={loadWorldMonitorFeed} disabled={busy}>Refresh World Feed</button>
                 </div>
                 <div className="list-box">
@@ -3380,11 +3536,16 @@ export function App(): JSX.Element {
                     <a key={`world-${item.news_id}`} className="list-item" href={item.url} target="_blank" rel="noreferrer">
                       <div>
                         <strong>{item.symbol} | {item.source}</strong>
-                        <p className="muted">{item.news_category ?? "stock_markets"} | {item.news_class ?? "world"}</p>
+                        <p className="muted">{item.news_category ?? "economy"} | {item.news_class ?? "world"} | {item.world_source ?? "feed"}</p>
                         <p className="muted">{item.title}</p>
+                        <p className="muted">{item.summary}</p>
+                        <p className="muted">{new Date(item.published_at).toLocaleString()}</p>
                       </div>
                     </a>
                   )) : <p className="muted">No world monitor headlines loaded.</p>}
+                </div>
+                <div className="compact-output">
+                  <p><strong>Sources:</strong> {worldMonitorSources.length ? worldMonitorSources.map((item) => item.source).join(", ") : "-"}</p>
                 </div>
               </article>
               <article className="panel">
@@ -3399,6 +3560,12 @@ export function App(): JSX.Element {
                 </div>
                 <div className="action-row">
                   <input value={openDataSeriesSymbol} onChange={(event) => setOpenDataSeriesSymbol(event.target.value)} placeholder="Series symbol" />
+                  <select value={openDataSeriesInterval} onChange={(event) => setOpenDataSeriesInterval(event.target.value)}>
+                    <option value="1d">1d</option>
+                    <option value="1wk">1wk</option>
+                    <option value="1mo">1mo</option>
+                  </select>
+                  <input type="number" min={10} max={300} value={openDataSeriesLimit} onChange={(event) => setOpenDataSeriesLimit(Number(event.target.value) || 120)} placeholder="Points" />
                   <button type="button" onClick={loadOpenDataSeries} disabled={busy}>Series</button>
                 </div>
                 <div className="compact-output">
@@ -3415,6 +3582,23 @@ export function App(): JSX.Element {
                     </div>
                   )) : <p className="muted">No open data overview loaded.</p>}
                 </div>
+                <div className="list-box">
+                  {openDataDatasets.length ? openDataDatasets.slice(0, 8).map((item) => (
+                    <div key={`dataset-${item.dataset_id}`} className="list-item">
+                      <strong>{item.dataset_id} | {item.label}</strong>
+                      <span>{item.provider}</span>
+                      <p className="muted">{item.description}</p>
+                    </div>
+                  )) : <p className="muted">No open data datasets loaded.</p>}
+                </div>
+                <div className="list-box">
+                  {openDataSeries.length ? openDataSeries.slice(-12).map((point) => (
+                    <div key={`series-${point.ts}`} className="list-item">
+                      <strong>{new Date(point.ts).toLocaleDateString()}</strong>
+                      <span>O:{point.open.toFixed(2)} H:{point.high.toFixed(2)} L:{point.low.toFixed(2)} C:{point.close.toFixed(2)}</span>
+                    </div>
+                  )) : <p className="muted">No open data series loaded.</p>}
+                </div>
               </article>
               <article className="panel">
                 <h3>Open Stock</h3>
@@ -3429,12 +3613,20 @@ export function App(): JSX.Element {
                 <div className="compact-output">
                   <p><strong>Search rows:</strong> {openStockSearchItems.length}</p>
                   <p><strong>Snapshot rows:</strong> {openStockSnapshotItems.length}</p>
+                  <p><strong>Active Symbol:</strong> {openStockActiveSymbol || "-"}</p>
+                </div>
+                <div className="compact-output">
+                  <p><strong>Name:</strong> {openStockReference?.name ?? "-"}</p>
+                  <p><strong>Day Range:</strong> {openStockReference ? `${openStockReference.day_low.toFixed(2)} - ${openStockReference.day_high.toFixed(2)}` : "-"}</p>
+                  <p><strong>52W Range:</strong> {openStockReference ? `${openStockReference.year_low.toFixed(2)} - ${openStockReference.year_high.toFixed(2)}` : "-"}</p>
+                  <p><strong>Quote:</strong> {openStockReference?.website ? <a href={openStockReference.website} target="_blank" rel="noreferrer">Open</a> : "-"}</p>
                 </div>
                 <div className="list-box">
                   {openStockSearchItems.length ? openStockSearchItems.slice(0, 6).map((item) => (
                     <div key={`openstock-search-${item.symbol}`} className="list-item">
                       <strong>{item.symbol} | {item.name}</strong>
                       <span>{item.exchange} | {item.type}</span>
+                      <button type="button" onClick={() => { void inspectOpenStockSymbol(item.symbol); }} disabled={busy}>Inspect</button>
                     </div>
                   )) : <p className="muted">No open stock search results.</p>}
                 </div>
@@ -3443,6 +3635,8 @@ export function App(): JSX.Element {
                     <div key={`openstock-snapshot-${item.symbol}`} className="list-item">
                       <strong>{item.symbol} | {item.name}</strong>
                       <span>{item.price.toFixed(2)} {item.currency} | {formatQuoteChange(item.change_pct / 100)}</span>
+                      <p className="muted">{item.exchange} | {item.type}</p>
+                      <p className="muted">Market Cap: {formatCompactNumber(item.market_cap)} | Volume: {formatCompactNumber(item.volume)}</p>
                     </div>
                   )) : <p className="muted">No open stock snapshot loaded.</p>}
                 </div>

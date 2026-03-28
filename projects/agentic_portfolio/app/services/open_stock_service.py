@@ -134,3 +134,70 @@ class OpenStockService:
             "backend": "openstock_bridge",
             "updated_at": _utc_now_iso(),
         }
+
+    def reference(self, symbol: str) -> dict[str, object]:
+        normalized = symbol.strip().upper()
+        if not normalized:
+            raise ValueError("symbol is required")
+
+        url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={urllib.parse.quote(normalized)}"
+        request = urllib.request.Request(url, headers={"User-Agent": "agentic-portfolio/0.1"})
+
+        detail: dict[str, object] | None = None
+        try:
+            with urllib.request.urlopen(request, timeout=8) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            results = ((payload.get("quoteResponse") or {}).get("result") or []) if isinstance(payload, dict) else []
+            if isinstance(results, list) and results:
+                entry = results[0] if isinstance(results[0], dict) else {}
+                if isinstance(entry, dict):
+                    detail = {
+                        "symbol": normalized,
+                        "name": entry.get("longName") or entry.get("shortName") or normalized,
+                        "exchange": entry.get("fullExchangeName") or entry.get("exchange") or "-",
+                        "type": entry.get("quoteType") or "-",
+                        "currency": entry.get("currency") or "USD",
+                        "price": float(entry.get("regularMarketPrice") or 0.0),
+                        "change_pct": float(entry.get("regularMarketChangePercent") or 0.0),
+                        "day_high": float(entry.get("regularMarketDayHigh") or 0.0),
+                        "day_low": float(entry.get("regularMarketDayLow") or 0.0),
+                        "year_high": float(entry.get("fiftyTwoWeekHigh") or 0.0),
+                        "year_low": float(entry.get("fiftyTwoWeekLow") or 0.0),
+                        "market_cap": float(entry.get("marketCap") or 0.0),
+                        "volume": float(entry.get("regularMarketVolume") or 0.0),
+                        "website": f"https://finance.yahoo.com/quote/{normalized}",
+                    }
+        except Exception:
+            detail = None
+
+        if detail is None:
+            catalog_item = next((row for row in self.DEFAULT_CATALOG if row["symbol"] == normalized), None)
+            detail = {
+                "symbol": normalized,
+                "name": catalog_item["name"] if catalog_item else normalized,
+                "exchange": catalog_item["exchange"] if catalog_item else "-",
+                "type": catalog_item["type"] if catalog_item else "Equity",
+                "currency": "USD",
+                "price": 0.0,
+                "change_pct": 0.0,
+                "day_high": 0.0,
+                "day_low": 0.0,
+                "year_high": 0.0,
+                "year_low": 0.0,
+                "market_cap": 0.0,
+                "volume": 0.0,
+                "website": f"https://finance.yahoo.com/quote/{normalized}",
+            }
+
+        peers = [
+            row
+            for row in self.DEFAULT_CATALOG
+            if row.get("symbol") != normalized and row.get("exchange") == detail.get("exchange")
+        ][:6]
+
+        return {
+            "item": detail,
+            "peers": peers,
+            "backend": "openstock_bridge",
+            "updated_at": _utc_now_iso(),
+        }

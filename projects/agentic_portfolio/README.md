@@ -26,6 +26,12 @@ Open:
 - Market/news/gateway: `/market/*`, `/news/*`, `/gateway/*`
 - OpenClaw-style feature surfaces: `/openclaw/*`, `/agent-router/*`, `/world-monitor/feed`, `/open-data/*`, `/open-stock/*`
 
+Reference-integrated feature endpoints:
+
+- World monitor: `/world-monitor/feed`, `/world-monitor/sources`
+- Open data: `/open-data/datasets`, `/open-data/overview`, `/open-data/series`
+- Open stock: `/open-stock/search`, `/open-stock/snapshot`, `/open-stock/reference`
+
 ## Runtime Model
 
 - `suzybae` is the primary human-facing runtime gateway agent.

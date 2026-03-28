@@ -2,6 +2,12 @@
 
 Portfolio Agent is a local-first agentic portfolio platform with a desktop operator cockpit and a FastAPI backend. It combines research workflows, deterministic trade-lane controls, and broker-safe execution boundaries with OpenClaw-style routing, skills/gateway scaffolding, world-monitor news integration, and stock/open-data research surfaces.
 
+Current integrated feature surfaces:
+
+- World monitor feed + source registry APIs with GUI controls for symbols, focus mode, and feed limits.
+- Open data APIs for datasets, quote overview, and historical series with GUI dataset/series rendering.
+- Open stock APIs for search, snapshots, and reference cards with peer context, connected to GUI inspect actions.
+
 ## Repository Structure
 
 - `projects/agentic_portfolio/` - FastAPI backend APIs, runtime orchestration, provider/gateway routing, trade-lane and portfolio services.

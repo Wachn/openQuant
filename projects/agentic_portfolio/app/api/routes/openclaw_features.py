@@ -9,6 +9,7 @@ from app.schemas import (
     OpenDataOverviewRequest,
     OpenDataSeriesRequest,
     OpenStockSearchRequest,
+    OpenStockReferenceRequest,
     OpenStockSnapshotRequest,
     WorldMonitorFeedRequest,
 )
@@ -92,6 +93,30 @@ def open_stock_search(payload: OpenStockSearchRequest, request: Request) -> dict
 def open_stock_snapshot(payload: OpenStockSnapshotRequest, request: Request) -> dict[str, object]:
     svc = request.app.state.open_stock_service
     return svc.snapshot(symbols=payload.symbols, limit=payload.limit)
+
+
+@router.post("/open-stock/reference")
+def open_stock_reference(payload: OpenStockReferenceRequest, request: Request) -> dict[str, object]:
+    svc = request.app.state.open_stock_service
+    try:
+        return svc.reference(symbol=payload.symbol)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/world-monitor/sources")
+def world_monitor_sources(request: Request) -> dict[str, object]:
+    svc = request.app.state.world_monitor_service
+    feeds = [
+        {
+            "source": source,
+            "url": url,
+        }
+        for source, url in svc.FEEDS
+    ]
+    return {
+        "items": feeds,
+    }
 
 
 @router.get("/openclaw/overview")
@@ -197,8 +222,8 @@ def openclaw_features_contracts() -> dict[str, object]:
             "gateway_channels": ["/gateway/channels", "/market/connectors/status"],
         },
         "integrated_features": {
-            "worldmonitor": ["/world-monitor/feed", "/news/feed?sources=worldmonitor"],
+            "worldmonitor": ["/world-monitor/feed", "/world-monitor/sources", "/news/feed?sources=worldmonitor"],
             "openbb_style_open_data": ["/open-data/datasets", "/open-data/overview", "/open-data/series"],
-            "openstock_style_reference": ["/open-stock/search", "/open-stock/snapshot"],
+            "openstock_style_reference": ["/open-stock/search", "/open-stock/snapshot", "/open-stock/reference"],
         },
     }

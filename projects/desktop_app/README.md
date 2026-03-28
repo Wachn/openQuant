@@ -2,6 +2,12 @@
 
 `projects/desktop_app` is the Tauri + React operator cockpit for Portfolio Agent. It connects to the local backend API and exposes runtime chat, provider connection flow, market/news monitors, OpenClaw-inspired panels, portfolio workflows, and execution actions.
 
+Integrated reference-style GUI areas in the Research workspace:
+
+- World Monitor panel (symbols/focus/limit + live sources)
+- Open Data panel (dataset search, overview, and historical series preview)
+- Open Stock panel (search, snapshot, and reference inspect card)
+
 ## Prerequisite
 
 Run backend first at `http://127.0.0.1:8000` from `projects/agentic_portfolio`.
