@@ -1,0 +1,317 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "level1_signals_builder": {
+      "description": "Internal builder agent for Level 1 signal contract development.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "level2_research_builder": {
+      "description": "Internal builder agent for Level 2 debate contract development.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "level3_trader_builder": {
+      "description": "Internal builder agent for Level 3 proposal schema development.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "level4_risk_builder": {
+      "description": "Internal builder agent for Level 4 risk policy development.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "level5_manager_builder": {
+      "description": "Internal builder agent for Level 5 decision and execution-gate development.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "trader_builder": {
+      "description": "Internal builder agent for cross-level trade routing development.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "portfolio_monitor_builder": {
+      "description": "Internal builder agent for monitoring and drift workflows.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "knowledge_curator_builder": {
+      "description": "Internal builder agent for RAG ingestion and evidence curation workflows.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "notification_builder": {
+      "description": "Internal builder agent for report and channel notification workflows.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "quant_ui_trading_designer_builder": {
+      "description": "Internal builder agent for quantitative portfolio and trading UI/UX architecture.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "institutional_portfolio_consultant_builder": {
+      "description": "Internal builder agent for institutional portfolio management consultant patterns and skill packs.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "program_manager": {
+      "description": "Internal coordination subagent for sprint slicing and phase governance.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "system_architect": {
+      "description": "Internal architecture subagent for invariants, boundaries, and artifact schemas.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "desktop_shell_builder": {
+      "description": "Internal builder agent for Tauri desktop runtime and packaging foundations.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "frontend_trading_builder": {
+      "description": "Internal builder agent for operator trading UX screens and contracts.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "frontend_chat_workspace_builder": {
+      "description": "Internal builder agent for chat workspace, evidence browser, and run timeline UX.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "backend_platform_builder": {
+      "description": "Internal builder agent for FastAPI platform structure, jobs, and shared services.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "portfolio_domain_builder": {
+      "description": "Internal builder agent for portfolio domain state, accounting, valuation, and reconciliation.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "market_data_builder": {
+      "description": "Internal builder agent for PIT market snapshots, refresh jobs, and staleness/drift.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "research_lane_builder": {
+      "description": "Internal builder agent for research lane tools/RAG and explicit promotion payloads.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "trade_lane_builder": {
+      "description": "Internal builder agent for deterministic L1-L5 trade lane contracts and gates.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "broker_integration_builder": {
+      "description": "Internal builder agent for IBKR/MT5 broker adapters, sync, and reconciliation.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "gateway_builder": {
+      "description": "Internal builder agent for channels/tools gateway, approvals, and audit trails.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "portfolio_analytics_builder": {
+      "description": "Internal builder agent for portfolio analytics artifacts and operator metrics.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "ui_ux_critic": {
+      "description": "Internal critic for operator UX clarity, error states, and evidence usability.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "risk_policy_critic": {
+      "description": "Internal critic for execution policy compliance and freshness/idempotency gates.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "security_tooling_critic": {
+      "description": "Internal critic for permissions, secrets handling, plugin isolation, and remote-channel safety.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "quant_validation_critic": {
+      "description": "Internal critic for quant validity, bias/leakage checks, and backtest assumption hygiene.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "performance_reliability_critic": {
+      "description": "Internal critic for durability, restart/resume, retry safety, and replay stability.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "release_ops_critic": {
+      "description": "Internal critic for Windows packaging, release readiness, diagnostics, and recovery.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_backend_platform": {
+      "description": "Ultrawork builder for backend platform runtime foundations.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_broker_integration": {
+      "description": "Ultrawork builder for broker integration boundaries.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_desktop_shell": {
+      "description": "Ultrawork builder for desktop shell and operator cockpit UX.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_frontend_chat_workspace": {
+      "description": "Ultrawork builder for runtime chat workspace surfaces.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_frontend_trading": {
+      "description": "Ultrawork builder for trading and portfolio action UX.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_market_data": {
+      "description": "Ultrawork builder for market data monitoring and freshness.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_monitoring_jobs": {
+      "description": "Ultrawork builder for always-on monitoring job orchestration.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_notification_center": {
+      "description": "Ultrawork builder for reminder and notification center behavior.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_performance_reliability_critic": {
+      "description": "Ultrawork critic for runtime resilience and reliability.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_portfolio_analytics": {
+      "description": "Ultrawork builder for runtime portfolio analytics outputs.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_portfolio_domain": {
+      "description": "Ultrawork builder for portfolio domain and change semantics.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_program_manager": {
+      "description": "Ultrawork builder program manager for iteration governance.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_provider_gateway": {
+      "description": "Ultrawork builder for local and external model provider gateway.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_quant_validation_critic": {
+      "description": "Ultrawork critic for quant validity and assumptions.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_release_ops_critic": {
+      "description": "Ultrawork critic for release and operational readiness.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_research_lane": {
+      "description": "Ultrawork builder for runtime research lane with RAG.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_risk_policy_critic": {
+      "description": "Ultrawork critic for runtime risk policy gates.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_runtime_agent_system": {
+      "description": "Ultrawork builder for runtime agent supervisor/router system.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_security_tooling_critic": {
+      "description": "Ultrawork critic for runtime security and tooling boundaries.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_system_architect": {
+      "description": "Ultrawork system architect builder for runtime and promotion lanes.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_trade_lane": {
+      "description": "Ultrawork builder for deterministic trade promotion lane.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    },
+    "builder_ui_ux_critic": {
+      "description": "Ultrawork critic for runtime operator UX quality.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.3-codex"
+    }
+  }
+}
