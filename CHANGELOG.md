@@ -10,3 +10,10 @@
 - Reworked desktop Research GUI panels so World Monitor, Open Data, and Open Stock are directly usable with visible controls, stock catalog browsing, and candlestick rendering.
 - Wired new GUI actions to backend endpoints for inspect/reference workflows, source visibility, and runtime settings monitoring.
 - Updated README documentation across root, backend, and desktop projects to reflect implemented feature surfaces.
+
+## 2026-03-28 - Runtime Dashboard and News Cache Recovery
+
+- Fixed duplicate-safe news cache persistence so repeated `/news/feed` refreshes no longer fail on `news_cache.news_id` collisions.
+- Fixed ChatGPT-backed OpenAI runtime behavior so SuzyBae retries from `codex-mini-latest` to `gpt-5.3-codex` when the account rejects Codex Mini.
+- Expanded the OpenStock monitoring UI with a monitor board, watchlist-linked news grid, and portfolio-linked inspection flow.
+- Added Anthropic-inspired skill pattern references to `.opencode/skills/` for reusable OpenCode skill development.

@@ -1313,7 +1313,18 @@ class ProviderGateway:
                         raise ValueError(f"openai unauthorized: {detail}") from exc
                 else:
                     detail = exc.read().decode("utf-8")[:300]
-                    raise ValueError(f"openai request failed: HTTP {exc.code} {detail}") from exc
+                    normalized_detail = detail.lower()
+                    if (
+                        use_chatgpt_backend
+                        and exc.code == 400
+                        and model == "codex-mini-latest"
+                        and ("not supported" in normalized_detail or "unsupported model" in normalized_detail)
+                    ):
+                        payload["model"] = "gpt-5.3-codex"
+                        raw = _send_openai_request(api_key)
+                        model = "gpt-5.3-codex"
+                    else:
+                        raise ValueError(f"openai request failed: HTTP {exc.code} {detail}") from exc
             text = str(raw.get("output_text", "")) if isinstance(raw, dict) else ""
             if not text.strip():
                 output = raw.get("output", []) if isinstance(raw, dict) else []

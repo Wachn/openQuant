@@ -9,6 +9,7 @@ Current integrated feature surfaces:
 - Open stock APIs for search, catalog browsing, snapshots, and reference cards with peer context, connected to GUI inspect actions.
 - OpenClaw-style settings, heartbeat, and cron status surfaces connected to the existing runtime workspace.
 - Stock candlestick rendering in the desktop Research workspace driven by open-data OHLC series.
+- Runtime fixes for SuzyBae provider fallback and duplicate-safe news cache writes.
 
 ## Repository Structure
 

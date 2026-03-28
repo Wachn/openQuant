@@ -3144,6 +3144,7 @@ export function App(): JSX.Element {
   const watchlistRows = activeWatchlistSymbols
     .map((symbol) => quoteBySymbol.get(symbol.toUpperCase()))
     .filter((item): item is MarketQuoteItem => Boolean(item));
+  const watchlistNews = newsFeed.filter((item) => activeWatchlistSymbols.includes(item.symbol.toUpperCase())).slice(0, 6);
   const missingWatchlistSymbols = activeWatchlistSymbols.filter((symbol) => !quoteBySymbol.has(symbol.toUpperCase()));
   const topPortfolioRows = [...marketQuotes]
     .filter((item) => portfolioSymbols.size === 0 || portfolioSymbols.has(item.symbol.toUpperCase()))
@@ -3187,6 +3188,7 @@ export function App(): JSX.Element {
     integrityIssues.push("portfolio account scope is out of sync with selected trade account");
   }
   const integrityStatus = integrityIssues.length === 0 ? "healthy" : "mismatch";
+  const monitorFlashOn = runtimePulse % 2 === 0;
 
   const openInstrumentChart = (instrumentId: string): void => {
     setSelectedMarketInstrumentId(instrumentId);
@@ -3946,6 +3948,24 @@ export function App(): JSX.Element {
                   <button type="button" onClick={openStockCatalogPrevPage} disabled={busy || openStockCatalogOffset === 0}>Prev</button>
                   <button type="button" onClick={openStockCatalogNextPage} disabled={busy || openStockCatalogOffset + openStockCatalogLimit >= openStockCatalogTotal}>Next</button>
                 </div>
+                <div className="panel inset-panel">
+                  <h4>OpenStock Monitor Board</h4>
+                  <div className="list-box">
+                    {watchlistRows.length ? watchlistRows.map((item) => (
+                      <div key={`openstock-monitor-${item.instrument_id}`} className="list-item">
+                        <div>
+                          <strong>{item.symbol} | {item.name}</strong>
+                          <span>{formatQuoteValue(item.value, item.currency)} | {formatQuoteChange(item.change_pct)}</span>
+                          <p className="muted">Source: {item.source_label} | Status: {item.status} | Portfolio: {portfolioSymbols.has(item.symbol.toUpperCase()) ? "held" : "watchlist"}</p>
+                        </div>
+                        <div className="action-row">
+                          <span className={item.change_pct >= 0 ? "pnl-up" : "pnl-down"}>{monitorFlashOn ? "●" : "○"}</span>
+                          <button type="button" onClick={() => { void inspectOpenStockSymbol(item.symbol); }} disabled={busy}>Inspect</button>
+                        </div>
+                      </div>
+                    )) : <p className="muted">Add symbols to the watchlist to monitor them here.</p>}
+                  </div>
+                </div>
                 <div className="list-box">
                   {openStockSearchItems.length ? openStockSearchItems.slice(0, 6).map((item) => (
                     <div key={`openstock-search-${item.symbol}`} className="list-item">
@@ -3998,6 +4018,20 @@ export function App(): JSX.Element {
                       </svg>
                     );
                   })() : <p className="muted">Load open data series to render candlesticks.</p>}
+                </div>
+                <div className="panel inset-panel">
+                  <h4>OpenStock News Grid</h4>
+                  <div className="list-box">
+                    {watchlistNews.length ? watchlistNews.map((item) => (
+                      <a key={`openstock-news-${item.news_id}`} className="list-item" href={item.url} target="_blank" rel="noreferrer">
+                        <div>
+                          <strong>{item.symbol} | {item.source}</strong>
+                          <span>{item.title}</span>
+                          <p className="muted">{item.summary}</p>
+                        </div>
+                      </a>
+                    )) : <p className="muted">No watchlist-linked market news loaded.</p>}
+                  </div>
                 </div>
               </article>
               <article className="panel">

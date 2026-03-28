@@ -1092,8 +1092,10 @@ class SQLiteStore:
                 expires_at = (published_dt + timedelta(days=max(1, ttl_days))).astimezone(timezone.utc).isoformat()
                 base_key = f"{source}|{url}"
                 dedupe_key = hashlib.sha256(base_key.encode("utf-8")).hexdigest()
-                news_id = str(item.get("news_id") or dedupe_key)
-                payload_json = json.dumps(item)
+                normalized_item = dict(item)
+                news_id = f"{source}:{dedupe_key}"
+                normalized_item["news_id"] = news_id
+                payload_json = json.dumps(normalized_item)
                 conn.execute(
                     """
                     INSERT INTO news_cache(
