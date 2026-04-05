@@ -5,6 +5,7 @@ import { ConnectionStatus } from "./components/Connection/ConnectionStatus";
 import { ModelPicker, type ProviderModel } from "./components/Connection/ModelPicker";
 import { ProviderPicker, type ProviderOption } from "./components/Connection/ProviderPicker";
 import { ResetConnectionButton } from "./components/Connection/ResetConnectionButton";
+import { TradingViewEmbed } from "./components/TradingViewEmbed";
 import { useCapabilities } from "./hooks/useCapabilities";
 import { useRuntimeStatus } from "./hooks/useRuntimeStatus";
 import { type ConnectionState, idleConnectionSnapshot } from "./store/connectionStore";
@@ -494,6 +495,71 @@ interface OpenStockCatalogResponse {
   updated_at: string;
 }
 
+interface FinnhubStatusResponse {
+  configured: boolean;
+  base_url: string;
+  webhook_secret_configured: boolean;
+  webhook_url: string | null;
+  updated_at: string;
+}
+
+interface FinnhubLookupItem {
+  description: string;
+  displaySymbol: string;
+  symbol: string;
+  type: string;
+}
+
+interface FinnhubLookupResponse {
+  query: string;
+  exchange?: string | null;
+  items: FinnhubLookupItem[];
+  backend: string;
+  updated_at: string;
+}
+
+interface FinnhubMarketStatusResponse {
+  exchange: string;
+  holiday?: string | null;
+  isOpen?: boolean;
+  session?: string | null;
+  timezone?: string;
+  t?: number;
+}
+
+interface FinnhubCompanyNewsItem {
+  category: string;
+  datetime: number;
+  headline: string;
+  id: number;
+  image?: string;
+  related?: string;
+  source: string;
+  summary: string;
+  url: string;
+}
+
+interface FinnhubCompanyNewsResponse {
+  symbol: string;
+  from: string;
+  to: string;
+  items: FinnhubCompanyNewsItem[];
+  backend: string;
+  updated_at: string;
+}
+
+interface FinnhubWidgetConfig {
+  script_url: string;
+  config: Record<string, unknown>;
+}
+
+interface FinnhubTradingViewWidgetsResponse {
+  advanced_chart: FinnhubWidgetConfig;
+  market_quotes: FinnhubWidgetConfig;
+  timeline: FinnhubWidgetConfig;
+  heatmap: FinnhubWidgetConfig;
+}
+
 interface OpenStockSnapshotItem {
   symbol: string;
   name: string;
@@ -781,6 +847,12 @@ export function App(): JSX.Element {
   const [openClawHeartbeat, setOpenClawHeartbeat] = useState<OpenClawHeartbeatResponse | null>(null);
   const [openClawCron, setOpenClawCron] = useState<OpenClawCronResponse | null>(null);
   const [openClawSettings, setOpenClawSettings] = useState<OpenClawSettingsResponse | null>(null);
+  const [finnhubStatus, setFinnhubStatus] = useState<FinnhubStatusResponse | null>(null);
+  const [finnhubLookupItems, setFinnhubLookupItems] = useState<FinnhubLookupItem[]>([]);
+  const [finnhubLookupQuery, setFinnhubLookupQuery] = useState("AAPL");
+  const [finnhubMarketStatus, setFinnhubMarketStatus] = useState<FinnhubMarketStatusResponse | null>(null);
+  const [finnhubCompanyNews, setFinnhubCompanyNews] = useState<FinnhubCompanyNewsItem[]>([]);
+  const [finnhubWidgetConfigs, setFinnhubWidgetConfigs] = useState<FinnhubTradingViewWidgetsResponse | null>(null);
   const [worldMonitorFeed, setWorldMonitorFeed] = useState<NewsFeedItem[]>([]);
   const [worldMonitorSources, setWorldMonitorSources] = useState<WorldMonitorSourceItem[]>([]);
   const [worldMonitorSymbols, setWorldMonitorSymbols] = useState("AAPL,MSFT,NVDA");
@@ -818,6 +890,8 @@ export function App(): JSX.Element {
     () => symbols.split(",").map((s) => s.trim().toUpperCase()).filter((s) => s.length > 0),
     [symbols]
   );
+  const activeWatchlistSymbolsMemo = useMemo(() => watchlists[activeWatchlistId] ?? [], [activeWatchlistId, watchlists]);
+  const activeWatchlistSymbolsCsv = useMemo(() => activeWatchlistSymbolsMemo.join(","), [activeWatchlistSymbolsMemo]);
 
   const primarySymbol = trackedSymbols[0] ?? "AAPL";
   const artifactRunId = runIdInput || tradeRun?.run_id || "";
@@ -990,6 +1064,12 @@ export function App(): JSX.Element {
         setOpenClawCron(openClawCronResp);
         const openClawSettingsResp = await callApi<OpenClawSettingsResponse>("/openclaw/settings", "GET");
         setOpenClawSettings(openClawSettingsResp);
+        const finnhubStatusResp = await callApi<FinnhubStatusResponse>("/finnhub/status", "GET");
+        setFinnhubStatus(finnhubStatusResp);
+        const finnhubMarketStatusResp = await callApi<FinnhubMarketStatusResponse>("/finnhub/market-status?exchange=US", "GET");
+        setFinnhubMarketStatus(finnhubMarketStatusResp);
+        const finnhubWidgetResp = await callApi<FinnhubTradingViewWidgetsResponse>(`/finnhub/tradingview/widgets?symbols=${encodeURIComponent("AAPL,MSFT,NVDA")}`, "GET");
+        setFinnhubWidgetConfigs(finnhubWidgetResp);
       } catch (e) {
         setError((e as Error).message);
       }
@@ -2327,6 +2407,45 @@ export function App(): JSX.Element {
     }
   };
 
+  const loadFinnhubStatus = async (): Promise<void> => {
+    try {
+      const [status, marketStatus, widgets] = await Promise.all([
+        callApi<FinnhubStatusResponse>("/finnhub/status", "GET"),
+        callApi<FinnhubMarketStatusResponse>("/finnhub/market-status?exchange=US", "GET"),
+        callApi<FinnhubTradingViewWidgetsResponse>(`/finnhub/tradingview/widgets?symbols=${encodeURIComponent(activeWatchlistSymbolsCsv || "AAPL,MSFT,NVDA")}`, "GET"),
+      ]);
+      setFinnhubStatus(status);
+      setFinnhubMarketStatus(marketStatus);
+      setFinnhubWidgetConfigs(widgets);
+    } catch {
+      setFinnhubStatus(null);
+      setFinnhubMarketStatus(null);
+      setFinnhubWidgetConfigs(null);
+    }
+  };
+
+  const runFinnhubLookup = async (): Promise<void> => {
+    const query = finnhubLookupQuery.trim();
+    if (!query) {
+      setError("Finnhub lookup query is required.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const [lookup, news] = await Promise.all([
+        callApi<FinnhubLookupResponse>("/finnhub/search", "POST", { query, exchange: "US" }),
+        callApi<FinnhubCompanyNewsResponse>("/finnhub/company-news", "POST", { symbol: query.toUpperCase() }),
+      ]);
+      setFinnhubLookupItems(lookup.items);
+      setFinnhubCompanyNews(news.items);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const loadOpenDataDatasets = async (): Promise<void> => {
     setBusy(true);
     setError(null);
@@ -2674,6 +2793,9 @@ export function App(): JSX.Element {
         openClawHeartbeatResp,
         openClawCronResp,
         openClawSettingsResp,
+        finnhubStatusResp,
+        finnhubMarketStatusResp,
+        finnhubWidgetResp,
         openDataDatasetsResp,
         openDataOverviewResp,
         openStockCatalogResp,
@@ -2697,6 +2819,9 @@ export function App(): JSX.Element {
         callApi<OpenClawHeartbeatResponse>("/openclaw/heartbeat", "GET"),
         callApi<OpenClawCronResponse>("/openclaw/cron", "GET"),
         callApi<OpenClawSettingsResponse>("/openclaw/settings", "GET"),
+        callApi<FinnhubStatusResponse>("/finnhub/status", "GET"),
+        callApi<FinnhubMarketStatusResponse>("/finnhub/market-status?exchange=US", "GET"),
+        callApi<FinnhubTradingViewWidgetsResponse>(`/finnhub/tradingview/widgets?symbols=${encodeURIComponent(activeWatchlistSymbolsCsv || "AAPL,MSFT,NVDA")}`, "GET"),
         callApi<OpenDataDatasetsResponse>("/open-data/datasets", "POST", { query: openDataQuery, limit: 12 }),
         callApi<OpenDataOverviewResponse>("/open-data/overview", "POST", { symbols: trackedSymbols, limit: 8 }),
         callApi<OpenStockCatalogResponse>("/open-stock/catalog", "POST", { query: openStockCatalogQuery || undefined, exchange: openStockCatalogExchange, stock_type: openStockCatalogType, limit: openStockCatalogLimit, offset: openStockCatalogOffset }),
@@ -2721,6 +2846,9 @@ export function App(): JSX.Element {
       setOpenClawHeartbeat(openClawHeartbeatResp);
       setOpenClawCron(openClawCronResp);
       setOpenClawSettings(openClawSettingsResp);
+      setFinnhubStatus(finnhubStatusResp);
+      setFinnhubMarketStatus(finnhubMarketStatusResp);
+      setFinnhubWidgetConfigs(finnhubWidgetResp);
       setOpenDataDatasets(openDataDatasetsResp.items);
       setOpenDataOverview(openDataOverviewResp.items);
       setOpenDataOpenbbAvailable(openDataOverviewResp.openbb_available);
@@ -2743,6 +2871,7 @@ export function App(): JSX.Element {
     newsClassFilter,
     trackedSymbols,
     openDataQuery,
+    activeWatchlistSymbolsCsv,
     openStockCatalogExchange,
     openStockCatalogLimit,
     openStockCatalogOffset,
@@ -3140,7 +3269,7 @@ export function App(): JSX.Element {
   const portfolioSymbols = new Set((portfolio?.positions ?? []).map((position) => position.symbol.toUpperCase()));
   const selectedTradeAccountScope: Exclude<PortfolioAccountScope, "overall"> = selectedBroker === "ibkr_paper" ? "ibkr" : "mt5";
   const quoteBySymbol = new Map(marketQuotes.map((item) => [item.symbol.toUpperCase(), item]));
-  const activeWatchlistSymbols = watchlists[activeWatchlistId] ?? [];
+  const activeWatchlistSymbols = activeWatchlistSymbolsMemo;
   const watchlistRows = activeWatchlistSymbols
     .map((symbol) => quoteBySymbol.get(symbol.toUpperCase()))
     .filter((item): item is MarketQuoteItem => Boolean(item));
@@ -3731,6 +3860,60 @@ export function App(): JSX.Element {
                 </div>
                 <p className="muted">Focus: {newsFeedMeta.focusMode} | cached items: {newsFeedMeta.cachedCount} | filter relaxed: {String(newsFeedMeta.filterRelaxed)}</p>
                 <div className="list-box">{newsFeed.length ? newsFeed.slice(0, 18).map((item) => (<a key={item.news_id} className="list-item" href={item.url} target="_blank" rel="noreferrer"><div><strong>{item.symbol} | {item.source}</strong><p className="muted">{item.news_category ?? "stock_markets"} | {item.news_class ?? "latest"}</p><p className="muted">{item.title}</p><p className="muted">{item.summary}</p></div>{item.thumbnail_url ? <img className="news-thumb" src={item.thumbnail_url} alt={item.source} /> : null}</a>)) : <p className="muted">No news loaded.</p>}</div>
+              </article>
+              <article className="panel">
+                <h3>Finnhub + TradingView</h3>
+                <div className="action-row">
+                  <input value={finnhubLookupQuery} onChange={(event) => setFinnhubLookupQuery(event.target.value)} placeholder="Lookup symbol" />
+                  <button type="button" onClick={runFinnhubLookup} disabled={busy}>Lookup</button>
+                  <button type="button" onClick={loadFinnhubStatus} disabled={busy}>Reload Finnhub</button>
+                </div>
+                <div className="compact-output">
+                  <p><strong>Configured:</strong> {String(finnhubStatus?.configured ?? false)}</p>
+                  <p><strong>Webhook Secret:</strong> {String(finnhubStatus?.webhook_secret_configured ?? false)}</p>
+                  <p><strong>Webhook URL:</strong> {finnhubStatus?.webhook_url ?? "-"}</p>
+                  <p><strong>US Market:</strong> {String(finnhubMarketStatus?.isOpen ?? false)} | {finnhubMarketStatus?.session ?? "-"}</p>
+                </div>
+                <div className="list-box">
+                  {finnhubLookupItems.length ? finnhubLookupItems.slice(0, 8).map((item) => (
+                    <div key={`finnhub-lookup-${item.symbol}`} className="list-item">
+                      <strong>{item.displaySymbol} | {item.description}</strong>
+                      <span>{item.type}</span>
+                      <button type="button" onClick={() => { void inspectOpenStockSymbol(item.symbol); }} disabled={busy}>Open</button>
+                    </div>
+                  )) : <p className="muted">No Finnhub lookup results loaded.</p>}
+                </div>
+                <div className="list-box">
+                  {finnhubCompanyNews.length ? finnhubCompanyNews.slice(0, 6).map((item) => (
+                    <a key={`finnhub-news-${item.id}`} className="list-item" href={item.url} target="_blank" rel="noreferrer">
+                      <div>
+                        <strong>{item.source} | {item.related || "MARKET"}</strong>
+                        <span>{item.headline}</span>
+                        <p className="muted">{item.summary}</p>
+                      </div>
+                    </a>
+                  )) : <p className="muted">No Finnhub company news loaded.</p>}
+                </div>
+                {finnhubWidgetConfigs ? (
+                  <div className="operator-grid">
+                    <div className="panel inset-panel">
+                      <h4>Heatmap</h4>
+                      <TradingViewEmbed scriptUrl={finnhubWidgetConfigs.heatmap.script_url} config={finnhubWidgetConfigs.heatmap.config} height={520} />
+                    </div>
+                    <div className="panel inset-panel">
+                      <h4>Market Quotes</h4>
+                      <TradingViewEmbed scriptUrl={finnhubWidgetConfigs.market_quotes.script_url} config={finnhubWidgetConfigs.market_quotes.config} height={420} />
+                    </div>
+                    <div className="panel inset-panel">
+                      <h4>Advanced Chart</h4>
+                      <TradingViewEmbed scriptUrl={finnhubWidgetConfigs.advanced_chart.script_url} config={finnhubWidgetConfigs.advanced_chart.config} height={520} />
+                    </div>
+                    <div className="panel inset-panel">
+                      <h4>Timeline</h4>
+                      <TradingViewEmbed scriptUrl={finnhubWidgetConfigs.timeline.script_url} config={finnhubWidgetConfigs.timeline.config} height={520} />
+                    </div>
+                  </div>
+                ) : <p className="muted">TradingView widget config unavailable until Finnhub status loads.</p>}
               </article>
               <article className="panel">
                 <h3>External Gateways</h3>

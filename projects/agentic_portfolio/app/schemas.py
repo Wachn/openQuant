@@ -312,6 +312,35 @@ class OpenStockReferenceRequest(BaseModel):
     symbol: str
 
 
+class FinnhubLookupRequest(BaseModel):
+    query: str
+    exchange: str | None = None
+
+
+class FinnhubStockSymbolsRequest(BaseModel):
+    exchange: str = "US"
+    mic: str | None = None
+    security_type: str | None = None
+    currency: str | None = None
+
+
+class FinnhubSymbolRequest(BaseModel):
+    symbol: str
+
+
+class FinnhubCompanyNewsRequest(BaseModel):
+    symbol: str
+    from_date: str | None = None
+    to_date: str | None = None
+
+
+class FinnhubCandlesRequest(BaseModel):
+    symbol: str
+    resolution: str = "D"
+    from_ts: int
+    to_ts: int
+
+
 class GatewayTestMessageRequest(BaseModel):
     text: str = "Agentic Portfolio gateway test"
 

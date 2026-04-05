@@ -33,6 +33,7 @@ from app.services.portfolio.portfolio_service import PortfolioServiceV21
 from app.services.portfolio_query_service import PortfolioQueryService
 from app.services.platform_service import PlatformService
 from app.services.flat_routing_agent_service import FlatRoutingAgentService
+from app.services.finnhub_service import FinnhubService
 from app.services.provider_gateway import ProviderGateway
 from app.services.provider_registry import ProviderRegistryService
 from app.services.route_trace_service import RouteTraceService
@@ -87,6 +88,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.world_monitor_service = WorldMonitorService()
     app.state.open_data_service = OpenDataService()
     app.state.open_stock_service = OpenStockService()
+    finnhub_webhook_base = config.finnhub_public_webhook_base_url or config.finnhub_ngrok_url or config.public_base_url
+    finnhub_webhook_url = None
+    if finnhub_webhook_base:
+        finnhub_webhook_url = f"{finnhub_webhook_base.rstrip('/')}{config.finnhub_webhook_path}"
+    app.state.finnhub_service = FinnhubService(
+        api_key=config.finnhub_api_key,
+        base_url=config.finnhub_base_url,
+        webhook_secret=config.finnhub_webhook_secret,
+        webhook_url=finnhub_webhook_url,
+    )
     app.state.provider_gateway = ProviderGateway(
         store=store,
         local_model_enabled=config.local_model_enabled,

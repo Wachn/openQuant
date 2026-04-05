@@ -17,3 +17,10 @@
 - Fixed ChatGPT-backed OpenAI runtime behavior so SuzyBae retries from `codex-mini-latest` to `gpt-5.3-codex` when the account rejects Codex Mini.
 - Expanded the OpenStock monitoring UI with a monitor board, watchlist-linked news grid, and portfolio-linked inspection flow.
 - Added Anthropic-inspired skill pattern references to `.opencode/skills/` for reusable OpenCode skill development.
+
+## 2026-03-29 - OpenStock Advancement and Finnhub Integration Layer
+
+- Added an OpenStock feature-advancement report under `docs/changes/2026-03-29_openstock_feature_advancement_report.md`.
+- Added a safe env-backed Finnhub service layer with status, symbol lookup, company news, market status, TradingView widget config, and webhook acknowledgement routes.
+- Added desktop Finnhub + TradingView workspace surfaces for lookup, status, heatmap, market quotes, advanced chart, and timeline widgets.
+- Documented ngrok-style local webhook usage without committing secrets.

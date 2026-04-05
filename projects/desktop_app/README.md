@@ -8,6 +8,7 @@ Integrated reference-style GUI areas in the Research workspace:
 - Open Data panel (dataset search, overview, and historical series preview)
 - Open Stock panel (search, catalog browser, snapshot, reference inspect card, and candlestick view)
 - OpenClaw-style runtime settings panel (router settings, heartbeat, cron jobs, cron runs)
+- Finnhub + TradingView panel (lookup, webhook/config status, heatmap, market quotes, advanced chart, timeline)
 
 ## Prerequisite
 

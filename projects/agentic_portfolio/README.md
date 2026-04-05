@@ -32,6 +32,7 @@ Reference-integrated feature endpoints:
 - Open data: `/open-data/datasets`, `/open-data/overview`, `/open-data/series`
 - Open stock: `/open-stock/search`, `/open-stock/catalog`, `/open-stock/snapshot`, `/open-stock/reference`
 - OpenClaw runtime surfaces: `/openclaw/settings`, `/openclaw/heartbeat`, `/openclaw/cron`
+- Finnhub and TradingView support: `/finnhub/status`, `/finnhub/search`, `/finnhub/company-news`, `/finnhub/tradingview/widgets`, `/finnhub/webhook`
 
 ## Runtime Model
 
@@ -53,3 +54,13 @@ uv run pytest tests/test_end_to_end.py
 - `AGENTIC_PORTFOLIO_HOST` (default `127.0.0.1`)
 - `AGENTIC_PORTFOLIO_PORT` (default `8000`)
 - Provider credentials and broker/channel credentials as required by your selected integrations
+- `AGENTIC_PORTFOLIO_FINNHUB_API_KEY`
+- `AGENTIC_PORTFOLIO_FINNHUB_WEBHOOK_SECRET`
+- `AGENTIC_PORTFOLIO_FINNHUB_PUBLIC_WEBHOOK_BASE_URL` or `AGENTIC_PORTFOLIO_FINNHUB_NGROK_URL`
+
+## Finnhub Local Webhook Notes
+
+- Keep Finnhub credentials in local env only; do not commit them.
+- Use a public HTTPS tunnel such as ngrok for local webhook testing.
+- Configure Finnhub to call `<public-url>/finnhub/webhook`.
+- The backend validates the `X-Finnhub-Secret` header and responds with a 2xx acknowledgement payload.

@@ -5,6 +5,11 @@ from fastapi import APIRouter, HTTPException, Request
 from app.schemas import (
     FlatRouterRouteRequest,
     FlatRouterUpdateSettingsRequest,
+    FinnhubCandlesRequest,
+    FinnhubCompanyNewsRequest,
+    FinnhubLookupRequest,
+    FinnhubStockSymbolsRequest,
+    FinnhubSymbolRequest,
     OpenDataDatasetsRequest,
     OpenDataOverviewRequest,
     OpenDataSeriesRequest,
@@ -130,6 +135,127 @@ def world_monitor_sources(request: Request) -> dict[str, object]:
     return {
         "items": feeds,
     }
+
+
+@router.get("/finnhub/status")
+def finnhub_status(request: Request) -> dict[str, object]:
+    return request.app.state.finnhub_service.status()
+
+
+@router.get("/finnhub/webhook/status")
+def finnhub_webhook_status(request: Request) -> dict[str, object]:
+    return request.app.state.finnhub_service.webhook_status()
+
+
+@router.get("/finnhub/market-status")
+def finnhub_market_status(request: Request, exchange: str = "US") -> dict[str, object]:
+    try:
+        return request.app.state.finnhub_service.market_status(exchange=exchange)
+    except ValueError:
+        return {
+            "exchange": exchange,
+            "isOpen": False,
+            "session": None,
+            "timezone": "America/New_York",
+            "configured": False,
+        }
+
+
+@router.get("/finnhub/tradingview/widgets")
+def finnhub_tradingview_widgets(request: Request, symbols: str = "AAPL,MSFT,NVDA") -> dict[str, object]:
+    symbol_list = [item.strip().upper() for item in symbols.split(",") if item.strip()]
+    return request.app.state.finnhub_service.tradingview_widget_configs(symbols=symbol_list)
+
+
+@router.post("/finnhub/search")
+def finnhub_search(payload: FinnhubLookupRequest, request: Request) -> dict[str, object]:
+    try:
+        return request.app.state.finnhub_service.symbol_lookup(query=payload.query, exchange=payload.exchange)
+    except ValueError:
+        return {
+            "query": payload.query,
+            "exchange": payload.exchange,
+            "items": [],
+            "backend": "finnhub",
+        }
+
+
+@router.post("/finnhub/stock-symbols")
+def finnhub_stock_symbols(payload: FinnhubStockSymbolsRequest, request: Request) -> dict[str, object]:
+    try:
+        return request.app.state.finnhub_service.stock_symbols(
+            exchange=payload.exchange,
+            mic=payload.mic,
+            security_type=payload.security_type,
+            currency=payload.currency,
+        )
+    except ValueError:
+        return {
+            "exchange": payload.exchange,
+            "items": [],
+            "backend": "finnhub",
+        }
+
+
+@router.post("/finnhub/quote")
+def finnhub_quote(payload: FinnhubSymbolRequest, request: Request) -> dict[str, object]:
+    try:
+        return request.app.state.finnhub_service.quote(symbol=payload.symbol)
+    except ValueError:
+        return {"symbol": payload.symbol, "quote": {}, "backend": "finnhub"}
+
+
+@router.post("/finnhub/profile")
+def finnhub_profile(payload: FinnhubSymbolRequest, request: Request) -> dict[str, object]:
+    try:
+        return request.app.state.finnhub_service.profile(symbol=payload.symbol)
+    except ValueError:
+        return {"symbol": payload.symbol, "item": {}, "backend": "finnhub"}
+
+
+@router.post("/finnhub/company-news")
+def finnhub_company_news(payload: FinnhubCompanyNewsRequest, request: Request) -> dict[str, object]:
+    try:
+        return request.app.state.finnhub_service.company_news(
+            symbol=payload.symbol,
+            from_date=payload.from_date,
+            to_date=payload.to_date,
+        )
+    except ValueError:
+        return {
+            "symbol": payload.symbol,
+            "from": payload.from_date,
+            "to": payload.to_date,
+            "items": [],
+            "backend": "finnhub",
+        }
+
+
+@router.post("/finnhub/candles")
+def finnhub_candles(payload: FinnhubCandlesRequest, request: Request) -> dict[str, object]:
+    try:
+        return request.app.state.finnhub_service.candles(
+            symbol=payload.symbol,
+            resolution=payload.resolution,
+            from_ts=payload.from_ts,
+            to_ts=payload.to_ts,
+        )
+    except ValueError:
+        return {
+            "symbol": payload.symbol,
+            "resolution": payload.resolution,
+            "payload": {"s": "no_data", "c": [], "h": [], "l": [], "o": [], "t": [], "v": []},
+            "backend": "finnhub",
+        }
+
+
+@router.post("/finnhub/webhook")
+def finnhub_webhook(payload: dict[str, object], request: Request) -> dict[str, object]:
+    secret = request.headers.get("X-Finnhub-Secret")
+    try:
+        return request.app.state.finnhub_service.accept_webhook(secret_header=secret, payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
 
 
 @router.get("/openclaw/overview")

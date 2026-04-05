@@ -52,6 +52,12 @@ class AppConfig(BaseSettings):
     whatsapp_phone_number_id: str | None = None
     whatsapp_app_secret: str | None = None
     whatsapp_test_recipient: str | None = None
+    finnhub_api_key: str | None = None
+    finnhub_base_url: str = "https://finnhub.io/api/v1"
+    finnhub_webhook_secret: str | None = None
+    finnhub_webhook_path: str = "/finnhub/webhook"
+    finnhub_public_webhook_base_url: str | None = None
+    finnhub_ngrok_url: str | None = None
     ibkr_cpapi_enabled: bool = True
     ibkr_cpapi_base_url: str = "https://localhost:5000/v1/api"
     ibkr_cpapi_websocket_url: str = "wss://localhost:5000/v1/api/ws"
